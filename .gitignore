@@ -1,0 +1,10 @@
+build/
+build-*/
+*.pyc
+__pycache__/
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+compile_commands.json
