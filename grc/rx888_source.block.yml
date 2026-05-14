@@ -1,0 +1,53 @@
+id: rx888_source
+label: RX888 Source
+category: '[rx888]'
+
+templates:
+  imports: from gnuradio import rx888
+  make: |-
+    rx888.source(
+        samprate=${samprate},
+        atten=${atten},
+        vga_gain=${vga_gain},
+        dither=${dither},
+        rand=${rand},
+        reference=${reference})
+
+parameters:
+- id: samprate
+  label: Sample rate (Hz)
+  dtype: real
+  default: 64.8e6
+- id: atten
+  label: RF attenuator (dB)
+  dtype: real
+  default: '0'
+- id: vga_gain
+  label: VGA gain (dB)
+  dtype: real
+  default: '0'
+- id: dither
+  label: ADC dither
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+- id: rand
+  label: ADC un-randomize
+  dtype: bool
+  default: 'True'
+  options: ['True', 'False']
+- id: reference
+  label: Reference osc (Hz)
+  dtype: real
+  default: 27e6
+
+outputs:
+- label: out
+  domain: stream
+  dtype: float
+
+asserts:
+- ${ samprate > 0 }
+- ${ reference > 0 }
+
+file_format: 1
