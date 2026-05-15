@@ -86,7 +86,7 @@ blocks:
     color8: '0'
     color9: '0'
     comment: ''
-    fc: samp_rate/4
+    fc: '0'
     fftsize: '4096'
     freqhalf: 'True'
     grid: 'False'
@@ -141,7 +141,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: samp_rate/4
+    fc: '0'
     fftsize: '4096'
     freqhalf: 'True'
     grid: 'False'
