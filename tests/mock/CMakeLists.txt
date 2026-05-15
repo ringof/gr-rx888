@@ -5,8 +5,10 @@
 # SONAME) so the gr-rx888 source block links and runs against it
 # unchanged. Lives in the build tree under tests/mock/ — do NOT install.
 
-# Use the public header from tests/librx888/ verbatim so any drift
-# would be immediately visible.
+# librx888.h is vendored alongside the mock — it's the ABI contract
+# the mock implements. Sync against rx888-tools' include/librx888.h
+# when the upstream contract grows; tests/expected-abi.txt enumerates
+# the symbol set this header should advertise.
 add_library(rx888_mock SHARED
     librx888_mock.c
 )
@@ -14,7 +16,6 @@ add_library(rx888_mock SHARED
 target_include_directories(rx888_mock
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/tests/librx888
 )
 
 target_link_libraries(rx888_mock PRIVATE pthread m)

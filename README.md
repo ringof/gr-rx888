@@ -35,17 +35,72 @@ Async message port `status` carries: `usb_overflow`, `host_overflow`,
 
 ## Build
 
-Requires GNU Radio 3.10 (`gnuradio-dev` on Debian/Ubuntu) and
-pybind11. librx888 is optional during early development.
+Requires GNU Radio 3.10 (`gnuradio-dev` on Debian/Ubuntu), pybind11,
+and [`librx888`](https://github.com/ringof/rx888-tools) installed
+system-wide.
+
+### Install librx888 first
+
+```sh
+sudo apt install -y libusb-1.0-0-dev pkg-config build-essential
+git clone https://github.com/ringof/rx888-tools.git
+cd rx888-tools
+make firmware         # fetch the pinned FX3 firmware release
+make
+sudo make install
+sudo ldconfig
+pkg-config --modversion librx888   # sanity check
+```
+
+### Then build gr-rx888
 
 ```sh
 mkdir build && cd build
-cmake -DWITH_RX888=OFF ..   # or ON once librx888 is installed
+cmake ..
 make -j
 ctest
 sudo make install
 sudo ldconfig
 ```
+
+### Skip the host setup: use the Docker image
+
+If your laptop has the wrong GR version or you want a known-good
+build to ship on a USB stick for the booth, there's a self-contained
+container in [`docker/`](docker/) that bundles librx888 + GR 3.10 +
+this module. One command runs the CLI smoke test:
+
+```sh
+docker/build.sh
+docker run --rm -it --privileged -v /dev/bus/usb:/dev/bus/usb gr-rx888:latest
+```
+
+There's also a `grc-demo` entrypoint that launches the bundled HF
+waterfall flowgraph with X11 forwarding. See [`docker/README.md`](docker/README.md)
+for both modes, plus the host-side prep (`usbfs_memory_mb`, udev
+rules) the container can't do for you.
+
+## At the bench
+
+Before the first time you wire up a flowgraph, run the preflight +
+smoke test in [`scripts/`](scripts/) to confirm the device, USB3 link,
+firmware load, `usbfs_memory_mb`, and udev permissions are all in order:
+
+```sh
+sudo scripts/rx888_smoketest.sh   # preflight + 1 sec capture + sanity stats
+```
+
+Pre-built flowgraphs live in [`examples/`](examples/):
+
+- [`am_bcb_audio_demo.grc`](examples/am_bcb_audio_demo.grc) — booth
+  default: tunable AM Broadcast Band receiver with **audio out**,
+  waterfall, and PSD. Works on a thumbtack.
+- [`am_bcb_demo.grc`](examples/am_bcb_demo.grc) — same tuner without
+  the audio path. Use when no speakers are available.
+- [`hf_waterfall_demo.grc`](examples/hf_waterfall_demo.grc) — full
+  0–16 MHz diagnostic view; no tuning, no decimation.
+
+See [`examples/README.md`](examples/README.md).
 
 ## Status
 

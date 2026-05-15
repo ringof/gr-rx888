@@ -12,9 +12,10 @@ permissions:
 jobs:
   # ---------------------------------------------------------------------
   # Build matrix: librx888 + gr-rx888 against the realistic Ubuntu set.
-  # Each runner installs the distro's GR 3.10.x, builds librx888 from
-  # tests/librx888/ overlaid on rx888-tools, then builds gr-rx888 and
-  # runs hardware-free ctest + GRC compile.
+  # Each runner installs the distro's GR 3.10.x, clones rx888-tools
+  # (librx888 lives there upstream), fetches the pinned firmware
+  # blob via `make firmware`, builds and installs librx888, then
+  # builds gr-rx888 and runs hardware-free ctest + GRC compile.
   # ---------------------------------------------------------------------
   build:
     name: build (${{ matrix.os }})
@@ -55,20 +56,16 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/ringof/rx888-tools.git /tmp/rx888-tools
 
-      - name: Overlay librx888 sources from tests/librx888/
-        run: |
-          cp tests/librx888/librx888.h     /tmp/rx888-tools/include/
-          cp tests/librx888/librx888.c     /tmp/rx888-tools/src/
-          cp tests/librx888/rx888_stream.c /tmp/rx888-tools/src/
-          cp tests/librx888/Makefile       /tmp/rx888-tools/
+      - name: Fetch firmware blob (pinned in rx888-tools/firmware/VERSION)
+        run: cd /tmp/rx888-tools && make firmware
 
-      - name: Build librx888 + install
+      - name: Build + install librx888 (and rx888_stream wrapper)
         run: |
           cd /tmp/rx888-tools
-          # rx888_dsp / iqrecord aren't relevant for librx888 CI; build
-          # only the library + the CLI wrapper that links it.
           make librx888.so librx888.a librx888.pc rx888_stream
-          # Install just the library artifacts and the wrapper binary.
+          # Install just the library artifacts + wrapper. Skip rx888_dsp
+          # / iqrecord here because they aren't relevant for gr-rx888 CI
+          # and `make install` requires every target plus udev rules.
           sudo install -d /usr/local/lib /usr/local/include /usr/local/lib/pkgconfig /usr/local/bin
           sudo install -m 755 librx888.so      /usr/local/lib/
           sudo install -m 644 librx888.a       /usr/local/lib/
@@ -436,8 +433,9 @@ jobs:
           ignore: DL3008,DL3015
 
   # ---------------------------------------------------------------------
-  # Docker image build. Ensures the Dockerfile + tests/librx888/ layout
-  # produces a working image. Runtime smoketest is skipped — needs hw.
+  # Docker image build. Ensures the Dockerfile produces a working image
+  # that clones rx888-tools, fetches firmware, and installs librx888.
+  # Runtime smoketest is skipped — needs hardware.
   # ---------------------------------------------------------------------
   docker:
     name: docker build

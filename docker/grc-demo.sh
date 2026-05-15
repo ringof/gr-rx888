@@ -17,4 +17,13 @@ rx888_preflight --quiet || {
     exit 1
 }
 
-exec gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc
+# Default to the AM BCB receiver demo — tunable slider + waterfall +
+# PSD + audio out. Needs --device /dev/snd on the docker run line for
+# host speakers to hear it; falls back to silent visualization if
+# audio isn't accessible.
+#
+# For the wide-spectrum diagnostic view (no audio, no tuner):
+#   gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc
+# For the AM BCB display-only view (no audio):
+#   gnuradio-companion /opt/gr-rx888/examples/am_bcb_demo.grc
+exec gnuradio-companion /opt/gr-rx888/examples/am_bcb_audio_demo.grc

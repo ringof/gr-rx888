@@ -33,23 +33,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libusb-1.0-0-dev usbutils \
         gnuradio gnuradio-dev \
         python3 python3-pip python3-numpy \
-        ca-certificates sudo \
+        # GTK3 bindings — gnuradio-companion (grc) uses GTK for its
+        # editor; without these the GUI fails at "Namespace Gtk not
+        # available" before the workspace loads.
+        gir1.2-gtk-3.0 python3-gi python3-gi-cairo \
+        # PyQt5 — used by qtgui_* sink/source blocks at runtime, which
+        # the bundled hf_waterfall_demo.grc relies on.
+        python3-pyqt5 \
+        # ALSA — audio.sink in am_bcb_audio_demo.grc routes the
+        # demodulated AM through the host's PCM out. The pulse plugin
+        # lets ALSA's `default` device forward to the host's
+        # PulseAudio/PipeWire socket instead of hitting hardware
+        # directly (which would EBUSY against the host audio server).
+        # alsa-utils gives us aplay -l for diagnostics in the container.
+        libasound2t64 libasound2-plugins alsa-utils \
+        ca-certificates sudo curl \
     && rm -rf /var/lib/apt/lists/*
 
-# librx888 expects rx888-tools sources for ezusb.* and rx888.h. Pull at
-# build time so the image is hermetic. Pin a specific commit when this
-# stabilizes.
+# librx888 lives in rx888-tools upstream. Clone, fetch the pinned
+# firmware blob from the rx888-firmware release named in
+# rx888-tools/firmware/VERSION, then build + install.
+# Pin a specific commit when this stabilizes.
 RUN git clone --depth 1 https://github.com/ringof/rx888-tools.git /opt/rx888-tools
 
-# Drop in librx888 sources from this repo's tests/librx888/ staging dir.
-# This goes away once librx888 is merged upstream into rx888-tools.
-COPY tests/librx888/librx888.h     /opt/rx888-tools/include/librx888.h
-COPY tests/librx888/librx888.c     /opt/rx888-tools/src/librx888.c
-COPY tests/librx888/rx888_stream.c /opt/rx888-tools/src/rx888_stream.c
-COPY tests/librx888/Makefile       /opt/rx888-tools/Makefile
-
 WORKDIR /opt/rx888-tools
-RUN make \
+RUN make firmware \
+    && make \
     && make install \
     && ldconfig
 
@@ -63,11 +72,19 @@ RUN cmake -DPYTHON_EXECUTABLE=/usr/bin/python3.12 .. \
     && ldconfig
 WORKDIR /opt/gr-rx888
 
-# Place scripts and examples on PATH for convenience
-RUN install -m 755 scripts/rx888_preflight.sh  /usr/local/bin/rx888_preflight \
- && install -m 755 scripts/rx888_smoketest.sh  /usr/local/bin/rx888_smoketest \
+# Route ALSA's "default" device through the pulse plugin. See
+# docker/asound.conf for the routing recipe.
+COPY docker/asound.conf /etc/asound.conf
+
+# Place scripts and examples on PATH for convenience. Keep the .sh
+# suffix so each script's "$HERE/<other>.sh" sibling lookups resolve.
+# Symlinks without the suffix give a tidier CLI ($ rx888_smoketest).
+RUN install -m 755 scripts/rx888_preflight.sh  /usr/local/bin/rx888_preflight.sh \
+ && install -m 755 scripts/rx888_smoketest.sh  /usr/local/bin/rx888_smoketest.sh \
  && install -m 755 docker/entrypoint.sh        /usr/local/bin/rx888_entrypoint \
- && install -m 755 docker/grc-demo.sh          /usr/local/bin/grc-demo
+ && install -m 755 docker/grc-demo.sh          /usr/local/bin/grc-demo \
+ && ln -s rx888_preflight.sh /usr/local/bin/rx888_preflight \
+ && ln -s rx888_smoketest.sh /usr/local/bin/rx888_smoketest
 
 ENTRYPOINT ["/usr/local/bin/rx888_entrypoint"]
 CMD ["smoketest"]
