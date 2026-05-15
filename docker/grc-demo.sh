@@ -18,9 +18,11 @@ rx888_preflight --quiet || {
 }
 
 # Default to the AM BCB receiver demo — tunable slider + waterfall +
-# PSD + audio out. Needs --device /dev/snd on the docker run line for
-# host speakers to hear it; falls back to silent visualization if
-# audio isn't accessible.
+# PSD + audio out. Needs the host's PulseAudio socket bind-mounted
+# into the container for the speakers to hear it:
+#   -v /run/user/$(id -u)/pulse:/tmp/pulse:ro -e PULSE_SERVER=unix:/tmp/pulse/native
+# Without it the flowgraph still starts but audio.sink fails to open.
+# See docker/README.md for the full run line.
 #
 # For the wide-spectrum diagnostic view (no audio, no tuner):
 #   gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc

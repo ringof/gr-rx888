@@ -12,17 +12,25 @@ rx888.source (32 MS/s real)
   → float_to_complex (imag = 0)
   → freq_shift_cc (-center_freq, retunes live)
   → rational_resampler_ccc (decim=16) → 2 MS/s complex
-  ├→ qtgui_waterfall_sink_c + qtgui_freq_sink_c
-  └→ analog.am_demod_cf (audio_decim=40, 5 kHz LPF) → 50 kHz real
+  ├→ qtgui_waterfall_sink_c + qtgui_freq_sink_c  (±1 MHz around tune)
+  └→ rational_resampler_ccc (decim=10) → 200 kHz complex
+     → analog.am_demod_cf (audio_decim=4, 3 kHz audio LPF) → 50 kHz real
      → rational_resampler_fff (24/25) → 48 kHz
      → multiply_const_ff (volume slider)
-     → audio.sink (ALSA default device)
+     → audio.sink (ALSA default → pulse plugin → host PulseAudio)
 ```
 
-Use this inside the Docker image via `docker run --device /dev/snd ... grc-demo`
-(see `docker/README.md`). The `--device /dev/snd` flag is required for
-the host's speakers to hear the audio — without it the flowgraph
-still starts but `audio.sink` errors out.
+The extra decim stage before `am_demod_cf` keeps the block's
+internal `optfir.low_pass` Parks-McClellan design inside a sane
+numerical range — going directly from 2 MS/s to 50 kHz audio asks
+for several thousand filter taps and pm_remez bails.
+
+Use this inside the Docker image via the audio + X11 + USB run line
+in [`../docker/README.md`](../docker/README.md). The container's
+`audio.sink` writes to ALSA's `default` device, which is wired
+through the pulse plugin to the host's PulseAudio/PipeWire — no
+contention for `/dev/snd`. Skip the pulse bind-mount and the audio
+sink still fails to open at start.
 
 ## `am_bcb_demo.grc` — silent tuner variant
 

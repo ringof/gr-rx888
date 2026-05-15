@@ -1,17 +1,25 @@
-title: The RX888 OOT Module
-brief: Short description of gr-rx888
-tags: # Tags are arbitrary, but look at CGRAN what other authors are using
+title: gr-rx888 — RX888 mk II SDR Source
+brief: GNU Radio source block for the RX888 mk II direct-sampling 16-bit / up-to-130 MSPS HF digitizer
+tags:
   - sdr
+  - hf
+  - rx888
+  - direct-sampling
+  - librx888
 author:
-  - Author Name <authors@email.address>
+  - Dave Goncalves <davegoncalves@gmail.com>
 copyright_owner:
-  - Copyright Owner 1
-license:
-gr_supported_version: # Put a comma separated list of supported GR versions here
-#repo: # Put the URL of the repository here, or leave blank for default
-#website: <module_website> # If you have a separate project website, put it here
-#icon: <icon_url> # Put a URL to a square image here that will be used as an icon on CGRAN
+  - Free Software Foundation, Inc.
+license: GPL-3.0-or-later
+gr_supported_version: v3.10
+repo: https://github.com/ringof/gr-rx888
 ---
-A longer, multi-line description of gr-rx888.
-You may use some *basic* Markdown here.
-If left empty, it will try to find a README file instead.
+A GNU Radio out-of-tree module that exposes the RX888 mk II SDR as a
+single `rx888.source` block via the `librx888` streaming library.
+Streams real int16 ADC samples to float32 with int16/32768 scaling;
+parameters cover sample rate, RF attenuator, AD8370 VGA, ADC dither,
+output-randomization, and reference oscillator.
+
+Pre-built example flowgraphs ship in `examples/` (AM Broadcast Band
+receiver with audio out, full-spectrum diagnostic view), plus a
+self-contained Docker image and a host preflight + smoketest script.
