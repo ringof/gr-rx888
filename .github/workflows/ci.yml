@@ -143,6 +143,65 @@ jobs:
           "
 
   # ---------------------------------------------------------------------
+  # Mock build: build gr-rx888 against the in-tree mock librx888 and
+  # run qa_source_mock, which exercises sample flow, dB->register
+  # conversions, lifecycle, and the open-failure error path.
+  # No librx888 install needed — the mock provides the ABI.
+  # ---------------------------------------------------------------------
+  mock:
+    name: build with mock (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            gnuradio gnuradio-dev \
+            python3 python3-numpy
+
+      - name: Resolve python interpreter for GR bindings
+        id: pyint
+        run: |
+          for v in 3.13 3.12 3.11 3.10 3.9; do
+            if /usr/bin/python$v -c "import gnuradio.gr" 2>/dev/null; then
+              echo "py=/usr/bin/python$v" >> "$GITHUB_OUTPUT"
+              echo "Using /usr/bin/python$v"
+              exit 0
+            fi
+          done
+          exit 1
+
+      - name: Configure gr-rx888 with -DWITH_RX888_MOCK=ON
+        run: |
+          mkdir build
+          cd build
+          cmake -DPYTHON_EXECUTABLE=${{ steps.pyint.outputs.py }} \
+                -DWITH_RX888_MOCK=ON ..
+
+      - name: Build
+        run: cd build && make -j$(nproc)
+
+      - name: ctest (qa_source + qa_source_mock)
+        run: cd build && ctest --output-on-failure
+
+      - name: Verify mock ABI matches real librx888 public surface
+        # The mock must export every symbol the real library does; tests
+        # would otherwise miss accidental ABI drift between the two.
+        run: |
+          nm -D --defined-only build/tests/mock/librx888.so.0 \
+            | awk '$2=="T" && $3 ~ /^rx888_/ {print $3}' \
+            | sort > /tmp/mock-abi.txt
+          grep -v '^#' tests/expected-abi.txt | grep -v '^$' | sort > /tmp/expected-abi.txt
+          diff -u /tmp/expected-abi.txt /tmp/mock-abi.txt
+
+  # ---------------------------------------------------------------------
   # Static analysis: shell + Dockerfile lint, GRC YAML syntax.
   # Fast, no compile.
   # ---------------------------------------------------------------------

@@ -27,6 +27,11 @@ gr_python_install(FILES __init__.py DESTINATION ${GR_PYTHON_DIR}/gnuradio/rx888)
 include(GrTest)
 
 set(GR_TEST_TARGET_DEPS gnuradio-rx888)
+if(WITH_RX888_MOCK)
+    # Ensure GR_ADD_TEST adds the mock .so's directory to LD_LIBRARY_PATH
+    # so the runtime linker resolves librx888.so to the mock build.
+    list(APPEND GR_TEST_TARGET_DEPS rx888_mock)
+endif()
 
 # Create a package directory that tests can import. It includes everything
 # from `python/`.
@@ -35,3 +40,16 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}
             ${PROJECT_BINARY_DIR}/test_modules/gnuradio/rx888/)
 GR_ADD_TEST(qa_source ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_source.py)
+
+# Mock-only QA. Registered only when WITH_RX888_MOCK=ON; ctypes-loads
+# the mock .so directly so it can introspect what the block told the
+# library.
+if(WITH_RX888_MOCK)
+    add_test(
+        NAME qa_source_mock
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_source_mock.py
+    )
+    set_tests_properties(qa_source_mock PROPERTIES
+        ENVIRONMENT "LIBRX888_MOCK_SO=$<TARGET_FILE:rx888_mock>;PYTHONPATH=${PROJECT_BINARY_DIR}/test_modules;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:rx888_mock>:$<TARGET_FILE_DIR:gnuradio-rx888>:$ENV{LD_LIBRARY_PATH}"
+    )
+endif()

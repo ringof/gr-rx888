@@ -150,6 +150,10 @@ bool source_impl::start()
             std::string("rx888_open failed: ") + rx888_strerror(rc) +
             ". Is the device plugged into a SuperSpeed (blue) USB port "
             "and firmware loaded?");
+        // Signal work() to return WORK_DONE so the flowgraph terminates
+        // promptly instead of spinning on empty work() calls.
+        d_stopping.store(true);
+        d_cv.notify_all();
         return false;
     }
 
@@ -159,6 +163,8 @@ bool source_impl::start()
             std::string("rx888_start failed: ") + rx888_strerror(rc));
         rx888_close(d_dev);
         d_dev = nullptr;
+        d_stopping.store(true);
+        d_cv.notify_all();
         return false;
     }
 
