@@ -106,10 +106,26 @@ endif(APPLE)
 find_package(Doxygen)
 
 ########################################################################
-# librx888 — RX888 streaming driver (required for v0.2)
+# librx888 — RX888 streaming driver
 ########################################################################
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBRX888 REQUIRED librx888)
+# WITH_RX888_MOCK swaps the real librx888 for an in-tree mock (see
+# tests/mock/). For QA only — mock pretends to be a device, synthesizes
+# samples, and exposes an introspection surface. Production builds
+# leave it OFF.
+option(WITH_RX888_MOCK
+    "Use in-tree mock librx888 instead of the system library (QA only)"
+    OFF)
+
+if(WITH_RX888_MOCK)
+    message(STATUS "Using in-tree MOCK librx888 (WITH_RX888_MOCK=ON)")
+    add_subdirectory(tests/mock)
+    # tests/mock/CMakeLists.txt sets LIBRX888_LIBRARIES, _INCLUDE_DIRS,
+    # _LIBRARY_DIRS, _CFLAGS_OTHER, and LIBRX888_MOCK_SO_PATH (generator
+    # expression for the .so on disk at build time).
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBRX888 REQUIRED librx888)
+endif()
 
 ########################################################################
 # Setup doxygen option

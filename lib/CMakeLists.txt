@@ -24,8 +24,8 @@ endif(NOT rx888_sources)
 
 add_library(gnuradio-rx888 SHARED ${rx888_sources})
 target_link_libraries(gnuradio-rx888
-    gnuradio::gnuradio-runtime
-    ${LIBRX888_LIBRARIES})
+    PUBLIC  gnuradio::gnuradio-runtime
+    PRIVATE ${LIBRX888_LIBRARIES})
 target_include_directories(
     gnuradio-rx888
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
@@ -43,8 +43,13 @@ endif(APPLE)
 ########################################################################
 # Install built library files
 ########################################################################
-include(GrMiscUtils)
-gr_library_foo(gnuradio-rx888)
+# Skip install/export when building with the mock — the mock target
+# isn't installable and a mock build isn't intended for system install
+# anyway (it's only useful for running QA against the mock).
+if(NOT WITH_RX888_MOCK)
+    include(GrMiscUtils)
+    gr_library_foo(gnuradio-rx888)
+endif()
 
 ########################################################################
 # Print summary
