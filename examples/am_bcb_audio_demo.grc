@@ -69,6 +69,30 @@ blocks:
     coordinate: [400, 8]
     rotation: 0
     state: enabled
+- name: chan_decim
+  id: variable
+  parameters:
+    comment: 'iq_rate / chan_decim = chan_rate'
+    value: '10'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [504, 8]
+    rotation: 0
+    state: enabled
+- name: chan_rate
+  id: variable
+  parameters:
+    comment: 'AM channel rate before audio LPF'
+    value: iq_rate/chan_decim
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [504, 80]
+    rotation: 0
+    state: enabled
 - name: audio_rate
   id: variable
   parameters:
@@ -78,7 +102,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [504, 8]
+    coordinate: [400, 80]
     rotation: 0
     state: enabled
 - name: center_freq
@@ -216,18 +240,44 @@ blocks:
     rotation: 0
     state: enabled
 
+- name: rational_resampler_xxx_chan
+  id: rational_resampler_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: '2 MS/s -> 200 kHz complex.
+
+      Keeps am_demod_cf''s internal Remez
+      LPF design in a sane numerical
+      regime — going straight from 2 MS/s
+      to 50 kHz audio asks for ~1300 taps
+      and pm_remez bails.'
+    decim: chan_decim
+    fbw: '0.4'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    taps: ''
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 488]
+    rotation: 0
+    state: enabled
 - name: analog_am_demod_cf_0
   id: analog_am_demod_cf
   parameters:
     affinity: ''
     alias: ''
-    audio_decim: '40'
+    audio_decim: '4'
     audio_pass: '3000'
     audio_stop: '4500'
-    chan_rate: iq_rate
+    chan_rate: chan_rate
     comment: 'envelope + DC-remove + LPF (5 kHz)
 
-      2 MS/s complex -> 50 kHz real audio'
+      200 kHz complex -> 50 kHz real audio'
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
@@ -417,7 +467,8 @@ connections:
 - [blocks_freqshift_cc_0, '0', rational_resampler_xxx_0, '0']
 - [rational_resampler_xxx_0, '0', qtgui_waterfall_sink_x_0, '0']
 - [rational_resampler_xxx_0, '0', qtgui_freq_sink_x_0, '0']
-- [rational_resampler_xxx_0, '0', analog_am_demod_cf_0, '0']
+- [rational_resampler_xxx_0, '0', rational_resampler_xxx_chan, '0']
+- [rational_resampler_xxx_chan, '0', analog_am_demod_cf_0, '0']
 - [analog_am_demod_cf_0, '0', rational_resampler_xxx_1, '0']
 - [rational_resampler_xxx_1, '0', blocks_multiply_const_vxx_0, '0']
 - [blocks_multiply_const_vxx_0, '0', audio_sink_0, '0']
