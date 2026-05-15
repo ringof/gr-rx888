@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gnuradio gnuradio-dev \
         python3 python3-pip python3-numpy \
         ca-certificates sudo \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 # librx888 lives in rx888-tools upstream. Clone, fetch the pinned
