@@ -8,3 +8,4 @@ __pycache__/
 *.swp
 *.swo
 compile_commands.json
+docker/librx888-src/
