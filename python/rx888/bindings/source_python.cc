@@ -38,7 +38,7 @@ void bind_source(py::module& m)
                std::shared_ptr<source>>(m, "source", D(source))
 
         .def(py::init(&source::make),
-             py::arg("samprate") = 64.8e6,
+             py::arg("samprate") = 32.0e6,
              py::arg("atten") = 0.0,
              py::arg("vga_gain") = 0.0,
              py::arg("dither") = false,

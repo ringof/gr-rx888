@@ -17,7 +17,7 @@ parameters:
 - id: samprate
   label: Sample rate (Hz)
   dtype: real
-  default: 64.8e6
+  default: 32e6
 - id: atten
   label: RF attenuator (dB)
   dtype: real

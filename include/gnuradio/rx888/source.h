@@ -45,7 +45,7 @@ public:
      * \param rand      Enable ADC output-randomization decode (un-randomize).
      * \param reference Reference oscillator frequency in Hz (Si5351 input).
      */
-    static sptr make(double samprate = 64.8e6,
+    static sptr make(double samprate = 32.0e6,
                      double atten = 0.0,
                      double vga_gain = 0.0,
                      bool dither = false,
