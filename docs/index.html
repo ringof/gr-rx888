@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gr-rx888 — Docker quickstart</title>
+<meta name="description" content="Go from a fresh Ubuntu terminal to a running RX888 mk2 GNU Radio flowgraph using the gr-rx888 Docker image. Beginner-friendly.">
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #1a1a1a;
+    --muted: #555;
+    --rule: #e2e2e2;
+    --code-bg: #0f1115;
+    --code-fg: #f3f3f3;
+    --accent: #0b5fff;
+    --warn-bg: #fff8e1;
+    --warn-border: #f0c040;
+    --ok-bg: #e9f7ec;
+    --ok-border: #6ec47a;
+    --kbd-bg: #efefef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --fg: #eaeaea;
+      --muted: #a8a8a8;
+      --rule: #2a2d33;
+      --code-bg: #0a0c10;
+      --code-fg: #f3f3f3;
+      --accent: #6aa8ff;
+      --warn-bg: #3a2e10;
+      --warn-border: #8a6a18;
+      --ok-bg: #173321;
+      --ok-border: #2d6a3e;
+      --kbd-bg: #2a2d33;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+  }
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 .25rem; }
+  header p { color: var(--muted); margin: .25rem 0; }
+  h2 {
+    font-size: 1.25rem;
+    margin: 2.2rem 0 .6rem;
+    padding-top: .25rem;
+    border-top: 1px solid var(--rule);
+  }
+  h2 .step {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    width: 1.7rem; height: 1.7rem;
+    text-align: center;
+    line-height: 1.7rem;
+    font-size: .9rem;
+    margin-right: .5rem;
+    vertical-align: middle;
+  }
+  h3 { font-size: 1.02rem; margin: 1.2rem 0 .4rem; }
+  p, ul, ol { margin: .55rem 0; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: .2rem 0; }
+  a { color: var(--accent); }
+  code, pre, kbd {
+    font-family: "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    font-size: .92em;
+  }
+  p code, li code {
+    background: var(--kbd-bg);
+    padding: .05rem .35rem;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: .85rem 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    line-height: 1.45;
+    margin: .55rem 0 .8rem;
+  }
+  pre code { background: transparent; padding: 0; }
+  kbd {
+    background: var(--kbd-bg);
+    border-radius: 4px;
+    padding: .05rem .4rem;
+    border: 1px solid var(--rule);
+    font-size: .85em;
+  }
+  .note, .warn, .ok {
+    border-left: 4px solid var(--rule);
+    padding: .55rem .85rem;
+    margin: .8rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .ok   { background: var(--ok-bg);   border-color: var(--ok-border); }
+  .note { background: var(--kbd-bg); border-color: var(--rule); }
+  .warn strong, .ok strong, .note strong { display: block; margin-bottom: .15rem; }
+  details { margin: .6rem 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  details[open] summary { margin-bottom: .35rem; }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: .9rem;
+  }
+  .toc {
+    background: var(--kbd-bg);
+    padding: .8rem 1rem;
+    border-radius: 8px;
+    margin: 1rem 0 0;
+  }
+  .toc ol { margin: .25rem 0 0; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>gr-rx888 — Docker quickstart</h1>
+  <p>From a fresh Ubuntu terminal to a tunable AM radio receiver in about
+  ten minutes. No GNU Radio or Docker experience required.</p>
+  <p>Hardware: <strong>RX888 mk2</strong> direct-sampling SDR &nbsp;·&nbsp;
+  Host: <strong>Ubuntu 22.04 or 24.04</strong> on a 64-bit PC with at
+  least one USB-3 port (the blue ones).</p>
+</header>
+
+<div class="toc" aria-label="On this page">
+  <strong>On this page</strong>
+  <ol>
+    <li><a href="#plug">Plug the RX888 into a USB-3 port</a></li>
+    <li><a href="#verify">Open a terminal and verify it's there</a></li>
+    <li><a href="#docker">Install Docker</a></li>
+    <li><a href="#usbmem">Raise the kernel's USB buffer limit</a></li>
+    <li><a href="#clone">Clone gr-rx888</a></li>
+    <li><a href="#build">Build the Docker image</a></li>
+    <li><a href="#x11">Let Docker draw on your screen</a></li>
+    <li><a href="#run">Run the AM Broadcast Band demo</a></li>
+    <li><a href="#execute">Execute the flowgraph</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+  </ol>
+</div>
+
+<h2 id="plug"><span class="step">1</span>Plug the RX888 into a USB-3 port</h2>
+<p>Use the supplied USB-3 cable. On the laptop, pick a <strong>blue</strong> USB
+port — that's USB-3 (5 Gbps). Black USB-2 ports will not deliver
+enough bandwidth and streaming will fail.</p>
+<p>The little LED on the RX888 should glow. Leave it plugged in for
+every step below.</p>
+
+<h2 id="verify"><span class="step">2</span>Open a terminal and verify it's there</h2>
+<p>Open <strong>Terminal</strong> (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd> on
+most Ubuntu desktops). Then ask Linux what's on the USB bus:</p>
+<pre><code>lsusb | grep -i cypress</code></pre>
+<p>You should see a line with <code>04b4:00f1</code> (firmware loaded) or
+<code>04b4:00f3</code> (bootloader, will be flashed automatically the first
+time the container runs). If you see <em>nothing</em>, the cable or the
+port is the problem — try a different blue port.</p>
+
+<h2 id="docker"><span class="step">3</span>Install Docker</h2>
+<p>Docker is a tool that runs a pre-packaged environment containing GNU
+Radio, the RX888 driver, and everything else you'd otherwise have to
+build by hand. On Ubuntu, install the version from the distro repos:</p>
+<pre><code>sudo apt update
+sudo apt install -y docker.io</code></pre>
+
+<p>By default <code>docker</code> needs <code>sudo</code>. Add yourself to the
+<code>docker</code> group so you can skip that:</p>
+<pre><code>sudo usermod -aG docker $USER</code></pre>
+
+<div class="warn">
+  <strong>Log out and back in</strong>
+  Group membership only takes effect on a new login session. Log out of
+  your desktop and back in (or reboot) before continuing. Verify with
+  <code>docker run --rm hello-world</code> — it should print a "Hello from
+  Docker!" banner.
+</div>
+
+<h2 id="usbmem"><span class="step">4</span>Raise the kernel's USB buffer limit</h2>
+<p>At 32 MS/s the RX888 fills the kernel's default USB transfer buffer
+faster than userspace can drain it. The symptom is
+<code>LIBUSB_ERROR_NO_MEM</code> from the driver. The fix is one line:</p>
+<pre><code>sudo sh -c 'echo 1000 &gt; /sys/module/usbcore/parameters/usbfs_memory_mb'</code></pre>
+<p>This raises the cap from the default 16 MB to 1 GB. It's not
+persistent — the value resets at every reboot. To make it permanent,
+add <code>usbcore.usbfs_memory_mb=1000</code> to your kernel command line.
+For first-time bring-up, the one-shot above is fine.</p>
+
+<h2 id="clone"><span class="step">5</span>Clone gr-rx888</h2>
+<pre><code>sudo apt install -y git
+git clone https://github.com/ringof/gr-rx888.git
+cd gr-rx888</code></pre>
+<p>Stay in this <code>gr-rx888</code> directory for the rest of the steps.</p>
+
+<h2 id="build"><span class="step">6</span>Build the Docker image</h2>
+<pre><code>docker/build.sh</code></pre>
+<p>This runs <code>docker build</code> against the recipe in
+<code>docker/Dockerfile</code>. It downloads Ubuntu 24.04, GNU Radio
+3.10, the RX888 firmware blob, and compiles <code>librx888</code> and
+<code>gr-rx888</code> from source. First run takes 5–15 minutes
+depending on your bandwidth. Subsequent runs are instant (cached).</p>
+<p>When it finishes, <code>docker images</code> should list
+<code>gr-rx888:latest</code>.</p>
+
+<h2 id="x11"><span class="step">7</span>Let Docker draw on your screen</h2>
+<p>GNU Radio Companion is a graphical application. The container needs
+permission to open windows on your desktop:</p>
+<pre><code>xhost +local:docker</code></pre>
+<p>(Run <code>xhost -local:docker</code> after the demo to revoke that.)</p>
+
+<h2 id="run"><span class="step">8</span>Run the AM Broadcast Band demo</h2>
+<p>The image's <code>grc-demo</code> command opens the bundled AM receiver
+flowgraph in GRC. The long-looking command below is one logical line
+that passes USB, audio, and display sockets into the container:</p>
+<pre><code>docker run --rm -it --privileged \
+  -v /dev/bus/usb:/dev/bus/usb \
+  -v /run/user/$(id -u)/pulse:/tmp/pulse:ro \
+  -e PULSE_SERVER=unix:/tmp/pulse/native \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  gr-rx888:latest grc-demo</code></pre>
+
+<details>
+  <summary>What each flag does</summary>
+  <ul>
+    <li><code>--rm</code> — delete the container when it exits.</li>
+    <li><code>-it</code> — give it a terminal so you can see log output.</li>
+    <li><code>--privileged</code> — let it talk to USB devices (the blunt-but-
+    simple option; tighter rules are documented in
+    <code>docker/README.md</code>).</li>
+    <li><code>-v /dev/bus/usb:/dev/bus/usb</code> — expose the USB bus.</li>
+    <li><code>-v …/pulse:/tmp/pulse:ro</code> +
+    <code>PULSE_SERVER</code> — route container audio to your host's
+    PulseAudio/PipeWire so the AM audio comes out your speakers.</li>
+    <li><code>-e DISPLAY</code> + <code>-v /tmp/.X11-unix:/tmp/.X11-unix</code> —
+    let GRC render windows on your X11 display.</li>
+    <li><code>grc-demo</code> — the entrypoint that opens the demo flowgraph.</li>
+  </ul>
+</details>
+
+<p>You'll see a few preflight checks (USB-3 link, firmware, device
+permissions) scroll past, then a GNU Radio Companion window opens with
+<code>am_bcb_audio_demo.grc</code> loaded.</p>
+
+<h2 id="execute"><span class="step">9</span>Execute the flowgraph</h2>
+<ol>
+  <li>In GRC, click the <strong>Execute</strong> button — the
+  &#9658; play icon in the toolbar (or press <kbd>F6</kbd>).</li>
+  <li>A second window opens with a <strong>waterfall</strong>, a
+  <strong>PSD plot</strong>, a <strong>Tune</strong> slider (540–1700 kHz)
+  and a <strong>Volume</strong> slider.</li>
+  <li>Drag the Tune slider until you hit a strong AM station — the
+  waterfall will show a bright vertical line. Adjust Volume.</li>
+</ol>
+<div class="ok">
+  <strong>That's it.</strong>
+  You're running real RF off real hardware through GNU Radio, with
+  audio coming out of your laptop speakers. Stop by clicking the
+  &#9632; stop button in the runtime window.
+</div>
+
+<h3>Other entrypoints</h3>
+<ul>
+  <li><code>… gr-rx888:latest</code> (no argument) → CLI smoketest:
+  one second of samples, prints PASS/FAIL. Good for bench bring-up.</li>
+  <li><code>… gr-rx888:latest shell</code> → interactive bash inside the
+  container with <code>rx888_stream</code>, <code>rx888_preflight</code>,
+  and <code>gnuradio-companion</code> on the PATH.</li>
+</ul>
+
+<h2 id="trouble"><span class="step">!</span>Troubleshooting</h2>
+
+<details>
+  <summary><code>docker: command not found</code></summary>
+  <p>Step 3 didn't finish. Run <code>sudo apt install -y docker.io</code>
+  and confirm with <code>which docker</code>.</p>
+</details>
+
+<details>
+  <summary><code>permission denied while trying to connect to the Docker daemon socket</code></summary>
+  <p>You're not in the <code>docker</code> group yet, or you didn't log
+  out and back in after Step 3. <code>id</code> should show
+  <code>docker</code> in your group list. Re-login or reboot.</p>
+</details>
+
+<details>
+  <summary><code>no Cypress FX3 device (04b4:*) found</code></summary>
+  <p>The RX888 isn't on the bus. Try a different blue USB-3 port and a
+  different cable. Confirm with <code>lsusb</code> on the host before
+  re-running the container.</p>
+</details>
+
+<details>
+  <summary><code>link speed 480 Mbps — RX888 needs USB3</code></summary>
+  <p>You plugged into a USB-2 port. Move to a blue port. On laptops
+  with only one USB-3 port, unplug other USB devices first — some
+  hubs negotiate down to USB-2 when over-subscribed.</p>
+</details>
+
+<details>
+  <summary><code>LIBUSB_ERROR_NO_MEM</code> during streaming</summary>
+  <p>The kernel USB buffer cap is still at the default. Re-run Step 4
+  on the host (not inside the container — that setting can only be
+  changed from the host):</p>
+  <pre><code>sudo sh -c 'echo 1000 &gt; /sys/module/usbcore/parameters/usbfs_memory_mb'</code></pre>
+</details>
+
+<details>
+  <summary>GRC window doesn't open / <code>cannot open display</code></summary>
+  <p>You skipped <code>xhost +local:docker</code> in Step 7, or you're
+  running on Wayland-only without XWayland. Most Ubuntu desktops ship
+  XWayland by default; if yours doesn't, install it with
+  <code>sudo apt install -y xwayland</code> and start a new session.</p>
+</details>
+
+<details>
+  <summary>No sound, even though the flowgraph runs</summary>
+  <p>Check that the host pulse socket bind-mount path is correct:
+  <code>ls /run/user/$(id -u)/pulse/native</code> should exist. If it
+  doesn't, your desktop isn't using PulseAudio or PipeWire, which is
+  unusual on modern Ubuntu. The visualization-only demo
+  (<code>am_bcb_demo.grc</code>) works without audio — see
+  <a href="https://github.com/ringof/gr-rx888/blob/main/docker/README.md">docker/README.md</a>.</p>
+</details>
+
+<details>
+  <summary>Flowgraph runs but the spectrum is flat / no stations visible</summary>
+  <p>The RX888's antenna input needs an actual antenna — even a few
+  meters of wire clipped to the SMA center pin will pull in AM
+  broadcast stations after dark. Without an antenna there's nothing
+  for the front end to receive.</p>
+</details>
+
+<footer>
+  <p>Source &amp; deeper docs:
+  <a href="https://github.com/ringof/gr-rx888">github.com/ringof/gr-rx888</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/ringof/gr-rx888/blob/main/docker/README.md">Docker reference</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/ringof/gr-rx888/blob/main/docs/PLAN.md">Design notes</a></p>
+  <p>GPL-3.0-or-later.</p>
+</footer>
+
+</main>
+</body>
+</html>
