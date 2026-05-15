@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ringof.github.io/gr-rx888/sitemap.xml

@@ -1,10 +1,12 @@
 # gr-rx888
 
-GNU Radio out-of-tree module for the **RX888 mk2** direct-sampling
-digitizer — a 16-bit, up-to-130 MSPS ADC with an HF-tuned analog
-front end, exposed as a single GR source block.
+GNU Radio out-of-tree module and host-side driver for the **RX888 mk2**
+direct-sampling SDR — a USB3, 16-bit, up-to-130 MSPS ADC with an
+HF-tuned analog front end, exposed as a single GR source block.
 
-[Want to quickly try it out? Follow me for the Dockerized version!](https://ringof.github.io/gr-rx888/)
+**Documentation:** [Docker quickstart one-pager](https://ringof.github.io/gr-rx888/)
+— fresh Ubuntu terminal to a running RX888 mk2 flowgraph in about
+ten minutes, no GNU Radio or Docker experience assumed.
 
 v0.2 — the block streams real samples from real hardware via
 [`librx888`](https://github.com/ringof/rx888-tools). See
