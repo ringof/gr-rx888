@@ -106,6 +106,12 @@ endif(APPLE)
 find_package(Doxygen)
 
 ########################################################################
+# librx888 — RX888 streaming driver (required for v0.2)
+########################################################################
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBRX888 REQUIRED librx888)
+
+########################################################################
 # Setup doxygen option
 ########################################################################
 if(DOXYGEN_FOUND)

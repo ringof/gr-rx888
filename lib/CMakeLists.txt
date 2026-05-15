@@ -23,11 +23,16 @@ if(NOT rx888_sources)
 endif(NOT rx888_sources)
 
 add_library(gnuradio-rx888 SHARED ${rx888_sources})
-target_link_libraries(gnuradio-rx888 gnuradio::gnuradio-runtime)
+target_link_libraries(gnuradio-rx888
+    gnuradio::gnuradio-runtime
+    ${LIBRX888_LIBRARIES})
 target_include_directories(
     gnuradio-rx888
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-    PUBLIC $<INSTALL_INTERFACE:include>)
+    PUBLIC $<INSTALL_INTERFACE:include>
+    PRIVATE ${LIBRX888_INCLUDE_DIRS})
+target_compile_options(gnuradio-rx888 PRIVATE ${LIBRX888_CFLAGS_OTHER})
+target_link_directories(gnuradio-rx888 PRIVATE ${LIBRX888_LIBRARY_DIRS})
 set_target_properties(gnuradio-rx888 PROPERTIES DEFINE_SYMBOL "gnuradio_rx888_EXPORTS")
 
 if(APPLE)
