@@ -61,6 +61,10 @@ sudo ldconfig
 
 ### Skip the host setup: use the Docker image
 
+New to Docker? The [**Docker quickstart one-pager**](https://ringof.github.io/gr-rx888/)
+walks an Ubuntu user from a fresh terminal to a running flowgraph in
+about ten minutes — no GNU Radio or Docker experience assumed.
+
 If your laptop has the wrong GR version or you want a known-good
 build to ship on a USB stick for the booth, there's a self-contained
 container in [`docker/`](docker/) that bundles librx888 + GR 3.10 +
