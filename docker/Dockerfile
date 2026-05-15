@@ -41,9 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # the bundled hf_waterfall_demo.grc relies on.
         python3-pyqt5 \
         # ALSA — audio.sink in am_bcb_audio_demo.grc routes the
-        # demodulated AM through the host's PCM out. alsa-utils gives
-        # us aplay -l for diagnostics inside the container.
-        libasound2t64 alsa-utils \
+        # demodulated AM through the host's PCM out. The pulse plugin
+        # lets ALSA's `default` device forward to the host's
+        # PulseAudio/PipeWire socket instead of hitting hardware
+        # directly (which would EBUSY against the host audio server).
+        # alsa-utils gives us aplay -l for diagnostics in the container.
+        libasound2t64 libasound2-plugins alsa-utils \
         ca-certificates sudo curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -68,6 +71,10 @@ RUN cmake -DPYTHON_EXECUTABLE=/usr/bin/python3.12 .. \
     && make install \
     && ldconfig
 WORKDIR /opt/gr-rx888
+
+# Route ALSA's "default" device through the pulse plugin. See
+# docker/asound.conf for the routing recipe.
+COPY docker/asound.conf /etc/asound.conf
 
 # Place scripts and examples on PATH for convenience. Keep the .sh
 # suffix so each script's "$HERE/<other>.sh" sibling lookups resolve.

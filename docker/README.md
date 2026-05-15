@@ -40,7 +40,8 @@ What happens:
 xhost +local:docker
 docker run --rm -it --privileged \
            -v /dev/bus/usb:/dev/bus/usb \
-           --device /dev/snd \
+           -v /run/user/$(id -u)/pulse:/tmp/pulse:ro \
+           -e PULSE_SERVER=unix:/tmp/pulse/native \
            -e DISPLAY=$DISPLAY \
            -v /tmp/.X11-unix:/tmp/.X11-unix \
            gr-rx888:latest grc-demo
@@ -51,10 +52,24 @@ a waterfall, a PSD, a Tune slider across 540–1700 kHz, a Volume
 slider, and **audio** of the tuned AM station out the host's default
 PCM device.
 
-`--device /dev/snd` passes the host's ALSA sound device into the
-container. Without it the flowgraph still runs but `audio_sink` fails
-to open at start. If you want the silent visualization only, swap the
-entrypoint:
+### Why PulseAudio passthrough and not `--device /dev/snd`
+
+On every modern Linux laptop the host's PulseAudio or PipeWire owns
+the ALSA hardware exclusively, so a second process inside the
+container that tries to open `default` directly via `--device /dev/snd`
+hits **`Device or resource busy`** — exactly the EBUSY we kept seeing.
+
+The image installs `libasound2-plugins` and a `/etc/asound.conf` that
+routes ALSA's `default` through the **pulse plugin**, which forwards
+audio to the PulseAudio socket. Bind-mounting `/run/user/$(id -u)/pulse`
+into the container and setting `PULSE_SERVER=unix:/tmp/pulse/native`
+gives the plugin the destination. The host audio server then mixes
+our stream with everything else — no EBUSY.
+
+PipeWire users get this for free: PipeWire ships a PulseAudio-compat
+socket at the same path.
+
+If you want the silent visualization only, swap the entrypoint:
 
 ```sh
 docker run ... gr-rx888:latest sh -c \
@@ -83,4 +98,4 @@ docker run --rm -it gr-rx888 gnuradio-config-info --version
 - **`usbfs_memory_mb`** is a host kernel parameter. The preflight script tries `sudo tee` on it, but inside `--privileged` containers your host's value is what you get. If captures fail with `LIBUSB_ERROR_NO_MEM`, run on the **host**: `sudo sh -c 'echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb'`.
 - **udev rules** for non-root USB access apply to the host. With `--privileged` you don't need them inside the container.
 - **X11 access** (`xhost +local:docker`) opens the host's display server; revert with `xhost -local:docker` after the demo.
-- **Audio passthrough** (`--device /dev/snd`) requires the host to actually have a working ALSA stack. If you're routing through PulseAudio/PipeWire, you may need to bind-mount the socket (`-v /run/user/$UID/pulse:/run/user/$UID/pulse`) and set `PULSE_SERVER`; the simple ALSA path above is enough for most laptops with built-in speakers.
+- **Audio passthrough** is via the host's PulseAudio/PipeWire socket (see above), not `--device /dev/snd`. PulseAudio/PipeWire holds the ALSA hardware exclusively on every modern Linux desktop, so direct ALSA from the container EBUSYs. If you somehow need raw ALSA (headless server, no audio daemon), add `--device /dev/snd --group-add audio` instead and either edit `/etc/asound.conf` inside the container or pass an explicit hw device to `audio.sink`.
