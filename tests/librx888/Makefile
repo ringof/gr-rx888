@@ -91,8 +91,19 @@ install: all
 	$(INSTALL) -m 644 $(LIBRX_HDR) $(DESTDIR)$(INCDIR_INST)/
 	$(INSTALL) -m 644 $(LIBRX_PC) $(DESTDIR)$(PCDIR)/
 	$(INSTALL) -d $(DESTDIR)$(BINDIR) && $(INSTALL) -m 755 $(BINS) $(DESTDIR)$(BINDIR)/
-	$(INSTALL) -d $(DESTDIR)$(FWDIR) && $(INSTALL) -m 644 firmware/SDDC_FX3.img $(DESTDIR)$(FWDIR)/
-	$(INSTALL) -d $(DESTDIR)$(UDEVDIR) && $(INSTALL) -m 644 udev/99-rx888.rules $(DESTDIR)$(UDEVDIR)/
+	@# firmware image and udev rules are best-effort: they live in the
+	@# rx888-tools repo but the .img and .rules files may be release
+	@# artifacts rather than checked-in source. Skip if absent.
+	@if [ -f firmware/SDDC_FX3.img ]; then \
+		$(INSTALL) -d $(DESTDIR)$(FWDIR) && $(INSTALL) -m 644 firmware/SDDC_FX3.img $(DESTDIR)$(FWDIR)/; \
+	else \
+		echo "Note: firmware/SDDC_FX3.img not present; skipping firmware install"; \
+	fi
+	@if [ -f udev/99-rx888.rules ]; then \
+		$(INSTALL) -d $(DESTDIR)$(UDEVDIR) && $(INSTALL) -m 644 udev/99-rx888.rules $(DESTDIR)$(UDEVDIR)/; \
+	else \
+		echo "Note: udev/99-rx888.rules not present; skipping udev install"; \
+	fi
 	-ldconfig 2>/dev/null || true
 
 uninstall:

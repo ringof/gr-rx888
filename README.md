@@ -35,9 +35,34 @@ Async message port `status` carries: `usb_overflow`, `host_overflow`,
 
 ## Build
 
-Requires GNU Radio 3.10 (`gnuradio-dev` on Debian/Ubuntu) and
-pybind11, plus [librx888](https://github.com/ringof/rx888-tools)
-installed system-wide.
+Requires GNU Radio 3.10 (`gnuradio-dev` on Debian/Ubuntu), pybind11,
+and `librx888` installed system-wide.
+
+### Install librx888 first
+
+`librx888` lives as a staging copy in this repo under
+[`tests/librx888/`](tests/librx888/) until it lands upstream in
+[`rx888-tools`](https://github.com/ringof/rx888-tools). To install
+it system-wide today, clone `rx888-tools` and overlay the staged
+files before building:
+
+```sh
+sudo apt install -y libusb-1.0-0-dev pkg-config build-essential
+git clone https://github.com/ringof/rx888-tools.git
+cp tests/librx888/librx888.h     rx888-tools/include/
+cp tests/librx888/librx888.c     rx888-tools/src/
+cp tests/librx888/rx888_stream.c rx888-tools/src/
+cp tests/librx888/Makefile       rx888-tools/
+(cd rx888-tools && make librx888.so librx888.a librx888.pc rx888_stream && sudo make install)
+sudo ldconfig
+pkg-config --modversion librx888   # sanity check
+```
+
+See [`tests/librx888/README.md`](tests/librx888/README.md) for the
+arrangement. Once `librx888` is upstream, this step collapses to
+`(cd rx888-tools && make && sudo make install)`.
+
+### Then build gr-rx888
 
 ```sh
 mkdir build && cd build
