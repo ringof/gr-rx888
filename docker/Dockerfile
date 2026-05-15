@@ -40,6 +40,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # PyQt5 — used by qtgui_* sink/source blocks at runtime, which
         # the bundled hf_waterfall_demo.grc relies on.
         python3-pyqt5 \
+        # ALSA — audio.sink in am_bcb_audio_demo.grc routes the
+        # demodulated AM through the host's PCM out. alsa-utils gives
+        # us aplay -l for diagnostics inside the container.
+        libasound2t64 alsa-utils \
         ca-certificates sudo curl \
     && rm -rf /var/lib/apt/lists/*
 

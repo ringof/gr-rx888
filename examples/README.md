@@ -1,24 +1,34 @@
 # gr-rx888 example flowgraphs
 
-## `am_bcb_demo.grc` — booth default
+## `am_bcb_audio_demo.grc` — booth default (with audio)
 
-Tunable AM Broadcast Band (540–1700 kHz) waterfall. A slider sets the
-center frequency live; the flowgraph downconverts a 32 MS/s real ADC
-stream to a 2 MS/s complex baseband centered on the slider value and
-displays a waterfall + PSD.
-
-Why this is the booth-default: AM BCB picks up reliably even on a
-thumbtack antenna. The demo "always works."
+Tunable AM Broadcast Band receiver. Drag the **Tune** slider across
+540–1700 kHz, drag the **Volume** slider, hear the station. Waterfall
+and PSD show what the tuner is on. AM BCB picks up reliably even on a
+thumbtack antenna — this is the "always works" demo.
 
 ```
 rx888.source (32 MS/s real)
   → float_to_complex (imag = 0)
   → freq_shift_cc (-center_freq, retunes live)
-  → rational_resampler_ccc (decim=16, internally-generated LPF)
-  → qtgui_waterfall_sink_c + qtgui_freq_sink_c (±1 MHz around center)
+  → rational_resampler_ccc (decim=16) → 2 MS/s complex
+  ├→ qtgui_waterfall_sink_c + qtgui_freq_sink_c
+  └→ analog.am_demod_cf (audio_decim=40, 5 kHz LPF) → 50 kHz real
+     → rational_resampler_fff (24/25) → 48 kHz
+     → multiply_const_ff (volume slider)
+     → audio.sink (ALSA default device)
 ```
 
-Use this one inside the Docker image via `docker run ... gr-rx888 grc-demo`.
+Use this inside the Docker image via `docker run --device /dev/snd ... grc-demo`
+(see `docker/README.md`). The `--device /dev/snd` flag is required for
+the host's speakers to hear the audio — without it the flowgraph
+still starts but `audio.sink` errors out.
+
+## `am_bcb_demo.grc` — silent tuner variant
+
+Same tuning + waterfall + PSD as the audio version, no audio output.
+Use when running headless / on a host without ALSA / when you only
+want the visualization.
 
 ## `hf_waterfall_demo.grc` — full-spectrum diagnostic
 

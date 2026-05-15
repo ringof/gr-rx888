@@ -90,11 +90,17 @@ firmware load, `usbfs_memory_mb`, and udev permissions are all in order:
 sudo scripts/rx888_smoketest.sh   # preflight + 1 sec capture + sanity stats
 ```
 
-Pre-built flowgraphs live in [`examples/`](examples/) —
-[`am_bcb_demo.grc`](examples/am_bcb_demo.grc) is the booth default
-(tunable AM Broadcast Band, works on a thumbtack), and
-[`hf_waterfall_demo.grc`](examples/hf_waterfall_demo.grc) is the
-full 0–16 MHz diagnostic view. See [`examples/README.md`](examples/README.md).
+Pre-built flowgraphs live in [`examples/`](examples/):
+
+- [`am_bcb_audio_demo.grc`](examples/am_bcb_audio_demo.grc) — booth
+  default: tunable AM Broadcast Band receiver with **audio out**,
+  waterfall, and PSD. Works on a thumbtack.
+- [`am_bcb_demo.grc`](examples/am_bcb_demo.grc) — same tuner without
+  the audio path. Use when no speakers are available.
+- [`hf_waterfall_demo.grc`](examples/hf_waterfall_demo.grc) — full
+  0–16 MHz diagnostic view; no tuning, no decimation.
+
+See [`examples/README.md`](examples/README.md).
 
 ## Status
 

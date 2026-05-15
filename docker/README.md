@@ -34,18 +34,39 @@ What happens:
 
 `--privileged` is the simple-but-blunt way to expose USB to the container. After Dayton, switch to `--device-cgroup-rule='c 189:* rmw' --device=/dev/bus/usb/<bus>/<dev>`.
 
-## Run the GRC waterfall demo
+## Run the GRC AM BCB receiver demo (with audio)
 
 ```sh
 xhost +local:docker
 docker run --rm -it --privileged \
            -v /dev/bus/usb:/dev/bus/usb \
+           --device /dev/snd \
            -e DISPLAY=$DISPLAY \
            -v /tmp/.X11-unix:/tmp/.X11-unix \
            gr-rx888:latest grc-demo
 ```
 
-Opens `examples/hf_waterfall_demo.grc` in GRC. Click Execute. You should see live HF spectrum (~0–16 MHz visible at 32 MS/s real).
+Opens `examples/am_bcb_audio_demo.grc` in GRC. Click Execute. You get
+a waterfall, a PSD, a Tune slider across 540–1700 kHz, a Volume
+slider, and **audio** of the tuned AM station out the host's default
+PCM device.
+
+`--device /dev/snd` passes the host's ALSA sound device into the
+container. Without it the flowgraph still runs but `audio_sink` fails
+to open at start. If you want the silent visualization only, swap the
+entrypoint:
+
+```sh
+docker run ... gr-rx888:latest sh -c \
+  'gnuradio-companion /opt/gr-rx888/examples/am_bcb_demo.grc'
+```
+
+Or for the wide-spectrum 0–16 MHz diagnostic view:
+
+```sh
+docker run ... gr-rx888:latest sh -c \
+  'gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc'
+```
 
 ## Other commands
 
@@ -62,3 +83,4 @@ docker run --rm -it gr-rx888 gnuradio-config-info --version
 - **`usbfs_memory_mb`** is a host kernel parameter. The preflight script tries `sudo tee` on it, but inside `--privileged` containers your host's value is what you get. If captures fail with `LIBUSB_ERROR_NO_MEM`, run on the **host**: `sudo sh -c 'echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb'`.
 - **udev rules** for non-root USB access apply to the host. With `--privileged` you don't need them inside the container.
 - **X11 access** (`xhost +local:docker`) opens the host's display server; revert with `xhost -local:docker` after the demo.
+- **Audio passthrough** (`--device /dev/snd`) requires the host to actually have a working ALSA stack. If you're routing through PulseAudio/PipeWire, you may need to bind-mount the socket (`-v /run/user/$UID/pulse:/run/user/$UID/pulse`) and set `PULSE_SERVER`; the simple ALSA path above is enough for most laptops with built-in speakers.
