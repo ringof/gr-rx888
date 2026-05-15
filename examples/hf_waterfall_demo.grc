@@ -6,11 +6,7 @@ options:
     cmake_opt: ''
     comment: ''
     copyright: ''
-    description: 'Live HF waterfall from RX888 mk II via librx888.
-
-      Demonstrates gr-rx888 v0.2: real samples from real hardware to a QT GUI sink.
-      Defaults to 32 MS/s (firmware-supported); shows roughly 0-16 MHz of
-      shortwave spectrum.'
+    description: 'Live HF waterfall from RX888 mk II via librx888 — real samples to qtgui at 32 MS/s, shows roughly 0-16 MHz of shortwave spectrum.'
     gen_cmake: 'On'
     gen_linking: dynamic
     generate_options: qt_gui
