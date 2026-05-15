@@ -121,14 +121,17 @@ jobs:
 
       - name: GRC flowgraph compiles
         run: |
+          # Compile only — do NOT import the generated module. The
+          # qt_gui template pulls in PyQt5 and gnuradio.qtgui at module
+          # load time, which would need an X-less Qt setup in CI. The
+          # grcc success itself is what we want to validate: the
+          # rx888_source block YAML resolves, all params are wired,
+          # and code generation succeeds.
           ${{ steps.pyint.outputs.py }} /usr/bin/grcc -o /tmp examples/hf_waterfall_demo.grc
           test -s /tmp/hf_waterfall_demo.py
-          # Imports without crashing (will try to open a device only at run-time, not import)
-          ${{ steps.pyint.outputs.py }} -c "
-          import sys; sys.path.insert(0, '/tmp')
-          import hf_waterfall_demo
-          print('flowgraph imports: OK')
-          "
+          # Confirm the generated file references our block.
+          grep -q "rx888.source" /tmp/hf_waterfall_demo.py
+          echo "flowgraph compiles: OK"
 
       - name: Python block import smoke test
         run: |

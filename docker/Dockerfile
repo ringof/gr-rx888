@@ -48,16 +48,20 @@ COPY tests/librx888/librx888.c     /opt/rx888-tools/src/librx888.c
 COPY tests/librx888/rx888_stream.c /opt/rx888-tools/src/rx888_stream.c
 COPY tests/librx888/Makefile       /opt/rx888-tools/Makefile
 
-RUN cd /opt/rx888-tools && make && make install && ldconfig
+WORKDIR /opt/rx888-tools
+RUN make \
+    && make install \
+    && ldconfig
 
 # Build gr-rx888 from this checkout
 WORKDIR /opt/gr-rx888
 COPY . /opt/gr-rx888
-RUN rm -rf build && mkdir build && cd build \
-    && cmake -DPYTHON_EXECUTABLE=/usr/bin/python3.12 .. \
-    && make -j$(nproc) \
+WORKDIR /opt/gr-rx888/build
+RUN cmake -DPYTHON_EXECUTABLE=/usr/bin/python3.12 .. \
+    && make -j"$(nproc)" \
     && make install \
     && ldconfig
+WORKDIR /opt/gr-rx888
 
 # Place scripts and examples on PATH for convenience
 RUN install -m 755 scripts/rx888_preflight.sh  /usr/local/bin/rx888_preflight \
