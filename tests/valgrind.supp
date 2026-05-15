@@ -1,0 +1,142 @@
+# Valgrind suppressions for gr-rx888 QA under memcheck.
+#
+# Scope: silence one-shot allocations and known-benign noise from the
+# Python interpreter, GNU Radio runtime, and OpenSSL init paths that
+# QA shouldn't fail on. Anything else — including everything inside
+# gnuradio-rx888.so, librx888.so, and the mock — must surface.
+
+# --- Python interpreter -------------------------------------------------
+# CPython retains a small fixed-size pool of allocations until exit;
+# memcheck reports them as "still reachable" but they're intentional.
+{
+   python_object_allocations_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libpython3.*.so*
+}
+{
+   python_module_init_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_PyObject_Malloc
+}
+{
+   python_arena_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_PyObject_Realloc
+}
+{
+   python_dict_resize_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:PyDict_*
+}
+
+# --- GNU Radio runtime --------------------------------------------------
+# Logger, scheduler, and PMT internals allocate global registries that
+# live for the process lifetime. Never freed; harmless.
+{
+   gnuradio_runtime_globals
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   ...
+   obj:*/libgnuradio-runtime.so*
+}
+{
+   gnuradio_logger_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/liblog4cpp*
+}
+{
+   gnuradio_pmt_intern_pool
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libgnuradio-pmt.so*
+}
+
+# --- VOLK ---------------------------------------------------------------
+# VOLK probe/init caches kernel selections in a global; freed at exit
+# on some platforms but not all.
+{
+   volk_machine_init
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   ...
+   obj:*/libvolk.so*
+}
+
+# --- glibc / dynamic linker --------------------------------------------
+# Per-thread keys allocated by libgcc/pthread that the linker doesn't
+# clean up.
+{
+   pthread_keys_used
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_*
+}
+{
+   dlopen_caches
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlopen*
+}
+# glibc's dl-open.c allocates scope arrays for dlopen() that aren't
+# freed until process exit. Memcheck calls them "definitely lost"
+# because the only pointer is in the dynamic linker's internal state;
+# they're not actually leaks in any meaningful sense.
+{
+   glibc_dl_open_resize_scopes
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:malloc
+   fun:resize_scopes
+   ...
+}
+{
+   glibc_dl_open_update_scopes
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:update_scopes
+   ...
+}
+{
+   glibc_dl_map_object_deps
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:malloc
+   fun:_dl_map_object_deps
+   ...
+}
+
+# --- ctypes -------------------------------------------------------------
+# ctypes caches type definitions per-module; reachable at exit.
+{
+   ctypes_type_cache
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/_ctypes*.so*
+}
+
+# --- libusb-1.0 (real librx888 path, not the mock) --------------------
+# libusb_init allocates context bookkeeping; freed by libusb_exit in
+# the rx888_close path. Suppress lingering "reachable" only.
+{
+   libusb_init_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libusb-1.0.so*
+}

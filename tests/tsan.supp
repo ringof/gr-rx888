@@ -1,0 +1,23 @@
+# ThreadSanitizer suppressions for gr-rx888 QA.
+#
+# Scope: silence races that originate in third-party libraries we link
+# against (GNU Radio runtime, libthrift, libusb, glibc). Anything in
+# gnuradio-rx888.so, librx888.so, or the mock must surface.
+
+# GR's runtime uses Apache Thrift for control-port RPC. At process
+# shutdown, Thrift's worker threads can race with the main thread's
+# destructor for the runtime singleton. Filed against GR upstream.
+race:libthrift*
+race:libgnuradio-runtime*
+
+# VOLK's machine-init writes to a global on first call; reads aren't
+# always synchronized but the value never mutates after init.
+race:libvolk*
+
+# libusb's hot-plug callback registration uses fork-safety locks that
+# tickle TSan when no callbacks are ever actually fired.
+race:libusb-1.0*
+
+# Python's GIL accounting around C extension load tickles TSan; not
+# our code.
+race:libpython3*

@@ -202,6 +202,209 @@ jobs:
           diff -u /tmp/expected-abi.txt /tmp/mock-abi.txt
 
   # ---------------------------------------------------------------------
+  # ASan + UBSan against the mock build. Catches use-after-free, buffer
+  # overflows, signed-overflow / shift-out-of-bounds in source_impl.cc
+  # and librx888_mock. Leak detection is delegated to the valgrind job
+  # because LSan against a Python interpreter that wasn't built with
+  # ASan flags swamps signal with CPython init noise.
+  # ---------------------------------------------------------------------
+  sanitize-address:
+    name: ASan + UBSan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            gnuradio gnuradio-dev \
+            python3 python3-numpy
+      - name: Resolve python interpreter
+        id: pyint
+        run: |
+          for v in 3.13 3.12 3.11 3.10 3.9; do
+            if /usr/bin/python$v -c "import gnuradio.gr" 2>/dev/null; then
+              echo "py=/usr/bin/python$v" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          exit 1
+      - name: Configure (-DWITH_SANITIZE=address,undefined)
+        run: |
+          mkdir build && cd build
+          cmake -DPYTHON_EXECUTABLE=${{ steps.pyint.outputs.py }} \
+                -DWITH_RX888_MOCK=ON \
+                -DWITH_SANITIZE=address,undefined \
+                -DCMAKE_BUILD_TYPE=Debug ..
+      - name: Build
+        run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs to avoid throw-based vmcircbuf probing
+        # When GR's vmcircbuf default-factory prefs file doesn't match
+        # a known factory name, GR probes each factory by try/catch.
+        # The Windows-only createfilemapping factory throws on Linux.
+        # With libasan LD_PRELOADed AFTER libstdc++ is already mapped,
+        # ASan's __cxa_throw interceptor is NULL and CHECK-fails the
+        # process. The file content must match a factory->name()
+        # return value EXACTLY (line, no trailing newline / whitespace).
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          # sysv_shm doesn't depend on /dev/shm and is the factory
+          # GR's auto-probe lands on locally on Debian/Ubuntu.
+          printf 'gr::vmcircbuf_sysv_shm_factory' \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo "Prefs file contents:"
+          cat "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo
+          echo "Prefs file hexdump (to confirm no trailing bytes):"
+          hexdump -C "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo "HOME=$HOME"
+          ls -la "$HOME/.gnuradio/prefs/"
+
+      - name: ctest under ASan
+        env:
+          # ASan needs to be on the loader path before Python loads any
+          # of our instrumented .so files; libasan is host-supplied.
+          # detect_leaks=0: CPython / GR Python "still reachable" noise
+          # would dwarf real signal. Leaks live in the valgrind job.
+          # halt_on_error=0: continue past first error to surface all
+          # diagnostics in one run instead of one-at-a-time.
+          ASAN_OPTIONS: "abort_on_error=0:halt_on_error=0:exitcode=42:print_stacktrace=1:detect_leaks=0"
+          UBSAN_OPTIONS: "abort_on_error=0:halt_on_error=0:exitcode=42:print_stacktrace=1"
+        run: |
+          export LD_PRELOAD=$(gcc -print-file-name=libasan.so)
+          echo "=== sanitizer env ==="
+          echo "LD_PRELOAD=$LD_PRELOAD"
+          echo "ASAN_OPTIONS=$ASAN_OPTIONS"
+          echo "UBSAN_OPTIONS=$UBSAN_OPTIONS"
+          ls -la "$LD_PRELOAD"
+          echo "=== running ctest -V ==="
+          # -V: print every test's full output so CI logs show any
+          # ASan diagnostic verbatim, not just ctest's pass/fail.
+          cd build && ctest -V --timeout 120
+
+  # ---------------------------------------------------------------------
+  # ThreadSanitizer against the mock build. Verifies the SPSC ring's
+  # producer/consumer atomics, the start/stop lifecycle handshake, and
+  # the mock's synthesis thread interactions. Known noise from GR's
+  # Thrift integration is suppressed via tests/tsan.supp.
+  # qa_source has no real thread interactions and segfaults under TSan
+  # preload (Python+Thrift quirk); we skip it and run only qa_source_mock.
+  # ---------------------------------------------------------------------
+  sanitize-thread:
+    name: TSan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            gnuradio gnuradio-dev \
+            python3 python3-numpy
+      - name: Resolve python interpreter
+        id: pyint
+        run: |
+          for v in 3.13 3.12 3.11 3.10 3.9; do
+            if /usr/bin/python$v -c "import gnuradio.gr" 2>/dev/null; then
+              echo "py=/usr/bin/python$v" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          exit 1
+      - name: Configure (-DWITH_SANITIZE=thread)
+        run: |
+          mkdir build && cd build
+          cmake -DPYTHON_EXECUTABLE=${{ steps.pyint.outputs.py }} \
+                -DWITH_RX888_MOCK=ON \
+                -DWITH_SANITIZE=thread \
+                -DCMAKE_BUILD_TYPE=Debug ..
+      - name: Build
+        run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs (avoid throw-based vmcircbuf probing)
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          # sysv_shm doesn't need /dev/shm to be writable (works on GHA
+          # runners where mmap_shm_open verification can fail). If GR
+          # can't verify the chosen factory at runtime, it falls back
+          # to probing — and the first probed factory is the Windows
+          # createfilemapping one, which throws on Linux.
+          echo -n "gr::vmcircbuf_sysv_shm_factory" \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+      - name: ctest under TSan (qa_source_mock only)
+        env:
+          TSAN_OPTIONS: "abort_on_error=0:exitcode=42:halt_on_error=0:report_signal_unsafe=0:second_deadlock_stack=1:suppressions=${{ github.workspace }}/tests/tsan.supp"
+        run: |
+          export LD_PRELOAD=$(gcc -print-file-name=libtsan.so)
+          cd build && ctest --output-on-failure --timeout 120 -R qa_source_mock
+
+  # ---------------------------------------------------------------------
+  # Valgrind memcheck against a normal (non-sanitizer) mock build.
+  # Catches definite leaks that escape ASan-with-detect_leaks=0, plus
+  # uninitialized-memory reads (which memcheck flags more reliably than
+  # ASan does). glibc / Python / GR init false positives suppressed via
+  # tests/valgrind.supp.
+  # ---------------------------------------------------------------------
+  valgrind:
+    name: valgrind memcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config valgrind \
+            gnuradio gnuradio-dev \
+            python3 python3-numpy
+      - name: Resolve python interpreter
+        id: pyint
+        run: |
+          for v in 3.13 3.12 3.11 3.10 3.9; do
+            if /usr/bin/python$v -c "import gnuradio.gr" 2>/dev/null; then
+              echo "py=/usr/bin/python$v" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          exit 1
+      - name: Configure (mock + Debug, no sanitizers)
+        run: |
+          mkdir build && cd build
+          cmake -DPYTHON_EXECUTABLE=${{ steps.pyint.outputs.py }} \
+                -DWITH_RX888_MOCK=ON \
+                -DCMAKE_BUILD_TYPE=Debug ..
+      - name: Build
+        run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs (avoid throw-based vmcircbuf probing)
+        # Not strictly required for valgrind (no LD_PRELOAD shenanigans),
+        # but harmless and matches the other sanitized jobs.
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          # sysv_shm doesn't need /dev/shm to be writable (works on GHA
+          # runners where mmap_shm_open verification can fail). If GR
+          # can't verify the chosen factory at runtime, it falls back
+          # to probing — and the first probed factory is the Windows
+          # createfilemapping one, which throws on Linux.
+          echo -n "gr::vmcircbuf_sysv_shm_factory" \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+      - name: Run qa_source_mock under valgrind memcheck
+        run: |
+          export PYTHONPATH="${{ github.workspace }}/build/test_modules"
+          export LIBRX888_MOCK_SO="${{ github.workspace }}/build/tests/mock/librx888.so"
+          export LD_LIBRARY_PATH="${{ github.workspace }}/build/tests/mock:${{ github.workspace }}/build/lib"
+          valgrind \
+            --tool=memcheck \
+            --error-exitcode=1 \
+            --leak-check=full \
+            --show-leak-kinds=definite \
+            --errors-for-leak-kinds=definite \
+            --suppressions=${{ github.workspace }}/tests/valgrind.supp \
+            --num-callers=20 \
+            ${{ steps.pyint.outputs.py }} \
+            ${{ github.workspace }}/python/rx888/qa_source_mock.py
+
+  # ---------------------------------------------------------------------
   # Static analysis: shell + Dockerfile lint, GRC YAML syntax.
   # Fast, no compile.
   # ---------------------------------------------------------------------
