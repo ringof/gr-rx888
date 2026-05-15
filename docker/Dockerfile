@@ -33,8 +33,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libusb-1.0-0-dev usbutils \
         gnuradio gnuradio-dev \
         python3 python3-pip python3-numpy \
-        ca-certificates sudo \
-        curl \
+        # GTK3 bindings — gnuradio-companion (grc) uses GTK for its
+        # editor; without these the GUI fails at "Namespace Gtk not
+        # available" before the workspace loads.
+        gir1.2-gtk-3.0 python3-gi python3-gi-cairo \
+        # PyQt5 — used by qtgui_* sink/source blocks at runtime, which
+        # the bundled hf_waterfall_demo.grc relies on.
+        python3-pyqt5 \
+        ca-certificates sudo curl \
     && rm -rf /var/lib/apt/lists/*
 
 # librx888 lives in rx888-tools upstream. Clone, fetch the pinned
@@ -59,11 +65,15 @@ RUN cmake -DPYTHON_EXECUTABLE=/usr/bin/python3.12 .. \
     && ldconfig
 WORKDIR /opt/gr-rx888
 
-# Place scripts and examples on PATH for convenience
-RUN install -m 755 scripts/rx888_preflight.sh  /usr/local/bin/rx888_preflight \
- && install -m 755 scripts/rx888_smoketest.sh  /usr/local/bin/rx888_smoketest \
+# Place scripts and examples on PATH for convenience. Keep the .sh
+# suffix so each script's "$HERE/<other>.sh" sibling lookups resolve.
+# Symlinks without the suffix give a tidier CLI ($ rx888_smoketest).
+RUN install -m 755 scripts/rx888_preflight.sh  /usr/local/bin/rx888_preflight.sh \
+ && install -m 755 scripts/rx888_smoketest.sh  /usr/local/bin/rx888_smoketest.sh \
  && install -m 755 docker/entrypoint.sh        /usr/local/bin/rx888_entrypoint \
- && install -m 755 docker/grc-demo.sh          /usr/local/bin/grc-demo
+ && install -m 755 docker/grc-demo.sh          /usr/local/bin/grc-demo \
+ && ln -s rx888_preflight.sh /usr/local/bin/rx888_preflight \
+ && ln -s rx888_smoketest.sh /usr/local/bin/rx888_smoketest
 
 ENTRYPOINT ["/usr/local/bin/rx888_entrypoint"]
 CMD ["smoketest"]
