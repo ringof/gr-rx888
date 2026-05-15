@@ -17,4 +17,7 @@ rx888_preflight --quiet || {
     exit 1
 }
 
-exec gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc
+# Default to the AM BCB demo — it always shows a signal, even on
+# a thumbtack antenna. To open the wide-spectrum diagnostic view,
+# launch with `gnuradio-companion /opt/gr-rx888/examples/hf_waterfall_demo.grc`.
+exec gnuradio-companion /opt/gr-rx888/examples/am_bcb_demo.grc
