@@ -1,0 +1,17 @@
+# Public librx888 ABI — must remain exported.
+#
+# Checked by .github/workflows/ci.yml:
+#   nm -D --defined-only librx888.so | grep ' T rx888_'
+#
+# Any change to this file is a deliberate ABI change. Bump library
+# version when you do.
+#
+# Internal symbols (ezusb_*, control_send, logerror, verbose) are NOT
+# part of the public ABI and may move. The block builds against the
+# header only.
+rx888_close
+rx888_open
+rx888_start
+rx888_stop
+rx888_strerror
+rx888_version

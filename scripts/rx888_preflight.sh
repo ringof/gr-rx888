@@ -64,8 +64,7 @@ pid=$(echo  "$dev_line" | awk '{print $6}' | cut -d: -f2)
 
 # --- 2. SuperSpeed link --------------------------------------------------
 step 2 "USB SuperSpeed (USB3) link"
-speed_file="/sys/bus/usb/devices/${bus#0}-*/speed"
-# match any device on this bus by walking children; simpler: shell-glob
+# Walk sysfs to find this device's link speed.
 speed=""
 for f in /sys/bus/usb/devices/*/idVendor; do
     if [[ -r "$f" ]] && [[ "$(cat "$f")" == "$VID" ]]; then

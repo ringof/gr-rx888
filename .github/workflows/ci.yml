@@ -1,0 +1,197 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Build matrix: librx888 + gr-rx888 against the realistic Ubuntu set.
+  # Each runner installs the distro's GR 3.10.x, builds librx888 from
+  # tests/librx888/ overlaid on rx888-tools, then builds gr-rx888 and
+  # runs hardware-free ctest + GRC compile.
+  # ---------------------------------------------------------------------
+  build:
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config git \
+            libusb-1.0-0-dev usbutils \
+            gnuradio gnuradio-dev \
+            python3 python3-yaml python3-numpy
+
+      - name: Resolve python interpreter for GR bindings
+        id: pyint
+        run: |
+          # GR 3.10's pybind module is built for the system python3 on
+          # each distro (3.10 on jammy, 3.12 on noble). Find the actual
+          # python that has gnuradio.gr importable.
+          for v in 3.13 3.12 3.11 3.10 3.9; do
+            if /usr/bin/python$v -c "import gnuradio.gr" 2>/dev/null; then
+              echo "py=/usr/bin/python$v" >> "$GITHUB_OUTPUT"
+              echo "Using /usr/bin/python$v"
+              exit 0
+            fi
+          done
+          echo "no python with importable gnuradio.gr" >&2
+          exit 1
+
+      - name: Clone rx888-tools (for ezusb.* + rx888.h)
+        run: |
+          git clone --depth 1 https://github.com/ringof/rx888-tools.git /tmp/rx888-tools
+
+      - name: Overlay librx888 sources from tests/librx888/
+        run: |
+          cp tests/librx888/librx888.h     /tmp/rx888-tools/include/
+          cp tests/librx888/librx888.c     /tmp/rx888-tools/src/
+          cp tests/librx888/rx888_stream.c /tmp/rx888-tools/src/
+          cp tests/librx888/Makefile       /tmp/rx888-tools/
+
+      - name: Build librx888 + install
+        run: |
+          cd /tmp/rx888-tools
+          # rx888_dsp / iqrecord aren't relevant for librx888 CI; build
+          # only the library + the CLI wrapper that links it.
+          make librx888.so librx888.a librx888.pc rx888_stream
+          # Install just the library artifacts and the wrapper binary.
+          sudo install -d /usr/local/lib /usr/local/include /usr/local/lib/pkgconfig /usr/local/bin
+          sudo install -m 755 librx888.so      /usr/local/lib/
+          sudo install -m 644 librx888.a       /usr/local/lib/
+          sudo install -m 644 include/librx888.h /usr/local/include/
+          sudo install -m 644 librx888.pc      /usr/local/lib/pkgconfig/
+          sudo install -m 755 rx888_stream     /usr/local/bin/
+          sudo ldconfig
+
+      - name: Verify pkg-config sees librx888
+        run: |
+          pkg-config --modversion librx888
+          pkg-config --cflags --libs librx888
+
+      - name: ABI check
+        run: |
+          # Public ABI must include every symbol in tests/expected-abi.txt.
+          # Internal symbols (ezusb_*, control_send, …) are not checked.
+          nm -D --defined-only /usr/local/lib/librx888.so \
+            | awk '$2=="T" && $3 ~ /^rx888_/ {print $3}' \
+            | sort > /tmp/actual-abi.txt
+          grep -v '^#' tests/expected-abi.txt | grep -v '^$' | sort > /tmp/expected-abi.txt
+          diff -u /tmp/expected-abi.txt /tmp/actual-abi.txt
+
+      - name: Configure gr-rx888
+        run: |
+          mkdir build
+          cd build
+          cmake -DPYTHON_EXECUTABLE=${{ steps.pyint.outputs.py }} ..
+
+      - name: Build gr-rx888
+        run: cd build && make -j$(nproc)
+
+      - name: ctest (hardware-free QA)
+        run: cd build && ctest --output-on-failure
+
+      - name: Install gr-rx888 so GRC can find the block
+        run: cd build && sudo make install && sudo ldconfig
+
+      - name: GRC block YAML parses
+        run: |
+          python3 -c "
+          import yaml
+          d = yaml.safe_load(open('grc/rx888_source.block.yml'))
+          assert d['id'] == 'rx888_source', d['id']
+          params = [p['id'] for p in d['parameters']]
+          for required in ['samprate','atten','vga_gain','dither','rand','reference']:
+              assert required in params, f'missing param: {required}'
+          print('block YAML: OK')
+          "
+
+      - name: GRC flowgraph compiles
+        run: |
+          ${{ steps.pyint.outputs.py }} /usr/bin/grcc -o /tmp examples/hf_waterfall_demo.grc
+          test -s /tmp/hf_waterfall_demo.py
+          # Imports without crashing (will try to open a device only at run-time, not import)
+          ${{ steps.pyint.outputs.py }} -c "
+          import sys; sys.path.insert(0, '/tmp')
+          import hf_waterfall_demo
+          print('flowgraph imports: OK')
+          "
+
+      - name: Python block import smoke test
+        run: |
+          ${{ steps.pyint.outputs.py }} -c "
+          from gnuradio import rx888
+          src = rx888.source(samprate=32000000, atten=0.0, vga_gain=0.0,
+                             dither=False, rand=True, reference=27e6)
+          print('block constructs:', src)
+          "
+
+  # ---------------------------------------------------------------------
+  # Static analysis: shell + Dockerfile lint, GRC YAML syntax.
+  # Fast, no compile.
+  # ---------------------------------------------------------------------
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+
+      - name: bash -n on shell scripts
+        run: |
+          for f in scripts/*.sh docker/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: shellcheck
+        run: shellcheck scripts/*.sh docker/*.sh
+
+      - name: hadolint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
+          # DL3008 (pin apt versions), DL3015 (no --no-install-recommends) — opt-in later
+          ignore: DL3008,DL3015
+
+  # ---------------------------------------------------------------------
+  # Docker image build. Ensures the Dockerfile + tests/librx888/ layout
+  # produces a working image. Runtime smoketest is skipped — needs hw.
+  # ---------------------------------------------------------------------
+  docker:
+    name: docker build
+    runs-on: ubuntu-24.04
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f docker/Dockerfile -t gr-rx888:ci .
+
+      - name: Image can run preflight (will fail at step 1 — no device — expected)
+        run: |
+          set +e
+          docker run --rm gr-rx888:ci rx888_preflight
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "preflight passed in CI without hardware — unexpected"
+            exit 1
+          fi
+          echo "preflight failed cleanly with exit $rc (expected; no device)"

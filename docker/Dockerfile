@@ -41,12 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # stabilizes.
 RUN git clone --depth 1 https://github.com/ringof/rx888-tools.git /opt/rx888-tools
 
-# Drop in librx888 sources (these come from this gr-rx888 repo's
-# librx888-staging/ via the build context — see docker/build.sh)
-COPY docker/librx888-src/librx888.h     /opt/rx888-tools/include/librx888.h
-COPY docker/librx888-src/librx888.c     /opt/rx888-tools/src/librx888.c
-COPY docker/librx888-src/rx888_stream.c /opt/rx888-tools/src/rx888_stream.c
-COPY docker/librx888-src/Makefile       /opt/rx888-tools/Makefile
+# Drop in librx888 sources from this repo's tests/librx888/ staging dir.
+# This goes away once librx888 is merged upstream into rx888-tools.
+COPY tests/librx888/librx888.h     /opt/rx888-tools/include/librx888.h
+COPY tests/librx888/librx888.c     /opt/rx888-tools/src/librx888.c
+COPY tests/librx888/rx888_stream.c /opt/rx888-tools/src/rx888_stream.c
+COPY tests/librx888/Makefile       /opt/rx888-tools/Makefile
 
 RUN cd /opt/rx888-tools && make && make install && ldconfig
 

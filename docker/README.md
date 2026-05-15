@@ -9,11 +9,12 @@ Pre-built environment with `librx888` + GNU Radio 3.10 + the `rx888.source` bloc
 ## Build the image
 
 ```sh
-# librx888 sources must already be staged (drop-in for rx888-tools)
-docker/build.sh /path/to/librx888-staging
+docker/build.sh
 ```
 
-That stages `librx888.h`, `librx888.c`, the slim `rx888_stream.c`, and the `Makefile` into `docker/librx888-src/` (gitignored), then runs `docker build`.
+The Dockerfile pulls librx888 sources from this repo's `tests/librx888/`
+staging area. No external paths required. That staging dir goes away
+once librx888 is merged upstream into rx888-tools.
 
 ## Run the smoketest
 
