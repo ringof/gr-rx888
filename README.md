@@ -4,6 +4,8 @@ GNU Radio out-of-tree module for the **RX888 mk2** direct-sampling
 digitizer — a 16-bit, up-to-130 MSPS ADC with an HF-tuned analog
 front end, exposed as a single GR source block.
 
+[Want to quickly try it out? Follow me for the Dockerized version!](https://ringof.github.io/gr-rx888/)
+
 v0.2 — the block streams real samples from real hardware via
 [`librx888`](https://github.com/ringof/rx888-tools). See
 [`docs/PLAN.md`](docs/PLAN.md) for the design rationale, scope, and
