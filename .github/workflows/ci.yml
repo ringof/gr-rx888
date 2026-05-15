@@ -240,17 +240,26 @@ jobs:
       - name: Build
         run: cd build && make -j$(nproc)
       - name: Pre-seed GNU Radio prefs to avoid throw-based vmcircbuf probing
-        # When GR can't find ~/.gnuradio/prefs/vmcircbuf_default_factory
-        # it probes each factory by try/catch, and the Windows-only
-        # createfilemapping factory throws on Linux. With libasan
-        # LD_PRELOADed AFTER libstdc++ is already mapped, ASan's
-        # __cxa_throw interceptor is NULL and CHECK-fails the process.
-        # Pre-writing the prefs file makes GR skip the probe entirely.
+        # When GR's vmcircbuf default-factory prefs file doesn't match
+        # a known factory name, GR probes each factory by try/catch.
+        # The Windows-only createfilemapping factory throws on Linux.
+        # With libasan LD_PRELOADed AFTER libstdc++ is already mapped,
+        # ASan's __cxa_throw interceptor is NULL and CHECK-fails the
+        # process. The file content must match a factory->name()
+        # return value EXACTLY (line, no trailing newline / whitespace).
         run: |
           mkdir -p "$HOME/.gnuradio/prefs"
-          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+          # sysv_shm doesn't depend on /dev/shm and is the factory
+          # GR's auto-probe lands on locally on Debian/Ubuntu.
+          printf 'gr::vmcircbuf_sysv_shm_factory' \
             > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo "Prefs file contents:"
           cat "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo
+          echo "Prefs file hexdump (to confirm no trailing bytes):"
+          hexdump -C "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          echo "HOME=$HOME"
+          ls -la "$HOME/.gnuradio/prefs/"
 
       - name: ctest under ASan
         env:
@@ -316,7 +325,12 @@ jobs:
       - name: Pre-seed GNU Radio prefs (avoid throw-based vmcircbuf probing)
         run: |
           mkdir -p "$HOME/.gnuradio/prefs"
-          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+          # sysv_shm doesn't need /dev/shm to be writable (works on GHA
+          # runners where mmap_shm_open verification can fail). If GR
+          # can't verify the chosen factory at runtime, it falls back
+          # to probing — and the first probed factory is the Windows
+          # createfilemapping one, which throws on Linux.
+          echo -n "gr::vmcircbuf_sysv_shm_factory" \
             > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
       - name: ctest under TSan (qa_source_mock only)
         env:
@@ -367,7 +381,12 @@ jobs:
         # but harmless and matches the other sanitized jobs.
         run: |
           mkdir -p "$HOME/.gnuradio/prefs"
-          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+          # sysv_shm doesn't need /dev/shm to be writable (works on GHA
+          # runners where mmap_shm_open verification can fail). If GR
+          # can't verify the chosen factory at runtime, it falls back
+          # to probing — and the first probed factory is the Windows
+          # createfilemapping one, which throws on Linux.
+          echo -n "gr::vmcircbuf_sysv_shm_factory" \
             > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
       - name: Run qa_source_mock under valgrind memcheck
         run: |
