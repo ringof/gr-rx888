@@ -62,6 +62,26 @@ include(GrMinReq)
 include(GrCompilerSettings)
 
 ########################################################################
+# Sanitizers (test-only)
+########################################################################
+# WITH_SANITIZE adds runtime instrumentation. Mutually exclusive
+# choices: "address,undefined" (ASan+UBSan) or "thread" (TSan).
+# Apply before targets are created so all subsequently-built artifacts
+# pick up the flags.
+set(WITH_SANITIZE "" CACHE STRING
+    "Build with runtime sanitizers (empty | address,undefined | thread)")
+if(WITH_SANITIZE)
+    message(STATUS "Building with sanitizers: ${WITH_SANITIZE}")
+    set(_san_flags -fsanitize=${WITH_SANITIZE} -fno-omit-frame-pointer)
+    if(WITH_SANITIZE MATCHES "address")
+        # Exit non-zero on first ASan/UBSan diagnostic so CI fails loudly.
+        list(APPEND _san_flags -fno-sanitize-recover=address,undefined)
+    endif()
+    add_compile_options(${_san_flags})
+    add_link_options(${_san_flags})
+endif()
+
+########################################################################
 # Install directories
 ########################################################################
 include(GrVersion)
