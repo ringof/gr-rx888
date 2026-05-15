@@ -38,7 +38,8 @@ public:
     /*!
      * \brief Construct an rx888 source.
      *
-     * \param samprate  ADC sample rate in Hz (e.g. 64.8e6, 130e6).
+     * \param samprate  ADC sample rate in Hz. Firmware-supported
+     *                  values: 32e6, 135e6.
      * \param atten     RF attenuator setting in dB (front-end step attenuator).
      * \param vga_gain  VGA gain in dB.
      * \param dither    Enable ADC dither.

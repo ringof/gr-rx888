@@ -1,11 +1,29 @@
-This is the rx888-write-a-block package meant as a guide to building
-out-of-tree packages. To use the rx888 blocks, the Python namespaces
-is in 'rx888', which is imported as:
+gr-rx888 — GNU Radio block for the RX888 mk II direct-sampling SDR.
 
-    import rx888
+Provides one source block, gr::rx888::source, which streams real
+int16 ADC samples from the device via librx888 and converts them to
+float32 in the range [-1.0, 1.0).
 
-See the Doxygen documentation for details about the blocks available
-in this package. A quick listing of the details can be found in Python
-after importing by using:
+Python import:
 
-    help(rx888)
+    from gnuradio import rx888
+    src = rx888.source(samprate=32_000_000,
+                       atten=0.0, vga_gain=0.0,
+                       dither=False, rand=True,
+                       reference=27e6)
+
+C++ include:
+
+    #include <gnuradio/rx888/source.h>
+    auto src = gr::rx888::source::make(32e6, 0.0, 0.0,
+                                       false, true, 27e6);
+
+Pre-built example flowgraphs live under share/gnuradio/grc/examples
+(installed) or examples/ (source tree):
+
+    am_bcb_audio_demo.grc    Tunable AM BCB receiver with audio out
+    am_bcb_demo.grc          Same tuner, no audio (visualization only)
+    hf_waterfall_demo.grc    Full 0-16 MHz diagnostic view
+
+See the top-level README for build and bench setup, examples/README.md
+for flowgraph details, and docs/PLAN.md for the design rationale.

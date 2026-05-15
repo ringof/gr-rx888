@@ -1,5 +1,16 @@
 # Plan: librx888 + gr-rx888
 
+> **Status snapshot (live):**
+> - `librx888` has shipped in [`rx888-tools`](https://github.com/ringof/rx888-tools).
+>   ABI: 9 public `rx888_*` symbols. Firmware blob pinned via
+>   `rx888-tools/firmware/VERSION`.
+> - `gr-rx888` v0.2 has shipped — `rx888.source` streams real samples
+>   through librx888 with full ASan / TSan / valgrind coverage.
+> - Booth-ready examples (`am_bcb_audio_demo.grc`, etc.) and a
+>   Docker image with audio + USB passthrough are in tree.
+> - Next: stream tags, `status` message port, typed firmware API
+>   (see [`firmware-api-plan.md`](firmware-api-plan.md)).
+
 A pair of minimal, composable artifacts that let GNU Radio (and any
 other consumer with a C linker) use the RX888mk2 as a 16-bit, 130 MSPS
 direct-sampling digitizer with an HF-tuned analog front end.

@@ -38,8 +38,7 @@ target_compile_options(rx888_mock PRIVATE -fvisibility=default)
 # Surface the variables the top-level CMakeLists.txt expects, mirroring
 # what pkg_check_modules(LIBRX888 ...) would set.
 set(LIBRX888_LIBRARIES    rx888_mock                          PARENT_SCOPE)
-set(LIBRX888_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/tests/librx888
-                          ${CMAKE_CURRENT_SOURCE_DIR}          PARENT_SCOPE)
+set(LIBRX888_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}          PARENT_SCOPE)
 set(LIBRX888_LIBRARY_DIRS ${CMAKE_CURRENT_BINARY_DIR}          PARENT_SCOPE)
 set(LIBRX888_CFLAGS_OTHER ""                                   PARENT_SCOPE)
 
