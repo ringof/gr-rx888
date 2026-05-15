@@ -10,6 +10,9 @@
 # part of the public ABI and may move. The block builds against the
 # header only.
 rx888_close
+rx888_config_init_default
+rx888_get_stats
+rx888_is_running
 rx888_open
 rx888_start
 rx888_stop

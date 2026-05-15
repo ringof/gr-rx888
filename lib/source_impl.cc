@@ -133,7 +133,11 @@ void source_impl::sample_cb(const int16_t* samples, std::size_t nsamples, void* 
 
 bool source_impl::start()
 {
-    rx888_config_t cfg{};
+    rx888_config_t cfg;
+    // rx888_open() rejects a struct with queue_depth, req_packets, or
+    // ctrl_timeout_ms set to zero. Always init_default first so those
+    // tuning knobs (and any future additions) get sane values.
+    rx888_config_init_default(&cfg);
     cfg.samplerate    = static_cast<unsigned>(d_samprate);
     cfg.att           = dB_to_dat31(d_atten);
     auto vga          = dB_to_ad8370(d_vga_gain);

@@ -36,20 +36,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# librx888 expects rx888-tools sources for ezusb.* and rx888.h. Pull at
-# build time so the image is hermetic. Pin a specific commit when this
-# stabilizes.
+# librx888 lives in rx888-tools upstream. Clone, fetch the pinned
+# firmware blob from the rx888-firmware release named in
+# rx888-tools/firmware/VERSION, then build + install.
+# Pin a specific commit when this stabilizes.
 RUN git clone --depth 1 https://github.com/ringof/rx888-tools.git /opt/rx888-tools
 
-# Drop in librx888 sources from this repo's tests/librx888/ staging dir.
-# This goes away once librx888 is merged upstream into rx888-tools.
-COPY tests/librx888/librx888.h     /opt/rx888-tools/include/librx888.h
-COPY tests/librx888/librx888.c     /opt/rx888-tools/src/librx888.c
-COPY tests/librx888/rx888_stream.c /opt/rx888-tools/src/rx888_stream.c
-COPY tests/librx888/Makefile       /opt/rx888-tools/Makefile
-
 WORKDIR /opt/rx888-tools
-RUN make \
+RUN make firmware \
+    && make \
     && make install \
     && ldconfig
 

@@ -12,9 +12,10 @@ Pre-built environment with `librx888` + GNU Radio 3.10 + the `rx888.source` bloc
 docker/build.sh
 ```
 
-The Dockerfile pulls librx888 sources from this repo's `tests/librx888/`
-staging area. No external paths required. That staging dir goes away
-once librx888 is merged upstream into rx888-tools.
+The Dockerfile clones rx888-tools (librx888 lives there upstream)
+and runs `make firmware && make install` to fetch the pinned FX3
+firmware release and install librx888 system-wide inside the image.
+No external paths required.
 
 ## Run the smoketest
 

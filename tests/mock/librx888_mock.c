@@ -38,6 +38,11 @@ static atomic_int      g_close_called     = 0;
 static atomic_int      g_tone_mode        = 0;
 static atomic_ullong   g_samples_delivered = 0;
 static atomic_ullong   g_clean_shutdowns   = 0;
+/* Stats counters mirrored across handles; QA cares about totals, not
+ * per-handle attribution (there's only ever one mock handle in flight). */
+static atomic_ullong   g_ok_xfers          = 0;
+static atomic_ullong   g_bad_xfers         = 0;
+static atomic_ullong   g_bytes_out         = 0;
 
 /* Last-open config: protected by g_cfg_mu for the writer; readers are
  * the test thread post-open, no concurrent writes once visible. */
@@ -89,6 +94,7 @@ struct rx888 {
     pthread_t         thread;
     atomic_int        stop;
     atomic_int        started;
+    atomic_int        running;  /* exported via rx888_is_running */
 };
 
 #define MOCK_CHUNK 65536  /* int16 samples per callback */
@@ -124,6 +130,8 @@ static void *gen_thread(void *arg)
         if (r->cb) {
             r->cb(buf, MOCK_CHUNK, r->user);
             atomic_fetch_add(&g_samples_delivered, MOCK_CHUNK);
+            atomic_fetch_add(&g_ok_xfers, 1);
+            atomic_fetch_add(&g_bytes_out, MOCK_CHUNK * sizeof(int16_t));
         }
         usleep(usec_per_chunk);
     }
@@ -134,11 +142,32 @@ static void *gen_thread(void *arg)
 
 /* ----------------------------- public ABI ------------------------------ */
 
+void rx888_config_init_default(rx888_config_t *cfg)
+{
+    if (!cfg) return;
+    memset(cfg, 0, sizeof(*cfg));
+    cfg->samplerate        = 32000000u;
+    cfg->gain_high         = 1;
+    cfg->queue_depth       = 32;
+    cfg->req_packets       = 1024;
+    cfg->ctrl_timeout_ms   = 5000;
+    cfg->stream_timeout_ms = 0;
+    cfg->watchdog_ms       = 3000;
+}
+
 int rx888_open(rx888_t **out, const rx888_config_t *cfg)
 {
     if (!out || !cfg) return MOCK_ERR_INVALID_PARAM;
 
     atomic_fetch_add(&g_open_called, 1);
+
+    /* Mirror real librx888's rejection of zeroed tuning knobs (this is
+     * what catches callers that forgot to call rx888_config_init_default). */
+    if (cfg->queue_depth == 0 || cfg->req_packets == 0 ||
+        cfg->ctrl_timeout_ms == 0) {
+        *out = NULL;
+        return MOCK_ERR_INVALID_PARAM;
+    }
 
     if (atomic_load(&g_open_should_fail)) {
         *out = NULL;
@@ -153,6 +182,7 @@ int rx888_open(rx888_t **out, const rx888_config_t *cfg)
     rx888_t *r = calloc(1, sizeof(*r));
     if (!r) return MOCK_ERR_INVALID_PARAM;
     r->cfg = *cfg;
+    atomic_store(&r->running, 1);
     *out = r;
     return MOCK_OK;
 }
@@ -182,6 +212,7 @@ void rx888_stop(rx888_t *r)
         atomic_store(&r->stop, 1);
         pthread_join(r->thread, NULL);
         atomic_store(&r->started, 0);
+        atomic_store(&r->running, 0);
         atomic_fetch_add(&g_clean_shutdowns, 1);
     }
 }
@@ -205,3 +236,19 @@ const char *rx888_strerror(int err)
 }
 
 const char *rx888_version(void) { return "0.0.0-mock"; }
+
+void rx888_get_stats(const rx888_t *r, rx888_stats_t *out)
+{
+    if (!out) return;
+    out->ok_xfers   = atomic_load(&g_ok_xfers);
+    out->bad_xfers  = atomic_load(&g_bad_xfers);
+    out->bytes_out  = atomic_load(&g_bytes_out);
+    out->in_flight  = r && atomic_load(&((rx888_t *)r)->started) ? 1 : 0;
+    out->last_cb_ms = 0;
+}
+
+int rx888_is_running(const rx888_t *r)
+{
+    if (!r) return 1;  /* docstring: 1 before start() and while running */
+    return atomic_load(&((rx888_t *)r)->running);
+}
