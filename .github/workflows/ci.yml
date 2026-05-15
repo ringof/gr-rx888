@@ -239,6 +239,19 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Debug ..
       - name: Build
         run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs to avoid throw-based vmcircbuf probing
+        # When GR can't find ~/.gnuradio/prefs/vmcircbuf_default_factory
+        # it probes each factory by try/catch, and the Windows-only
+        # createfilemapping factory throws on Linux. With libasan
+        # LD_PRELOADed AFTER libstdc++ is already mapped, ASan's
+        # __cxa_throw interceptor is NULL and CHECK-fails the process.
+        # Pre-writing the prefs file makes GR skip the probe entirely.
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+          cat "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
+
       - name: ctest under ASan
         env:
           # ASan needs to be on the loader path before Python loads any
@@ -300,6 +313,11 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Debug ..
       - name: Build
         run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs (avoid throw-based vmcircbuf probing)
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
       - name: ctest under TSan (qa_source_mock only)
         env:
           TSAN_OPTIONS: "abort_on_error=0:exitcode=42:halt_on_error=0:report_signal_unsafe=0:second_deadlock_stack=1:suppressions=${{ github.workspace }}/tests/tsan.supp"
@@ -344,6 +362,13 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Debug ..
       - name: Build
         run: cd build && make -j$(nproc)
+      - name: Pre-seed GNU Radio prefs (avoid throw-based vmcircbuf probing)
+        # Not strictly required for valgrind (no LD_PRELOAD shenanigans),
+        # but harmless and matches the other sanitized jobs.
+        run: |
+          mkdir -p "$HOME/.gnuradio/prefs"
+          echo "gr::vmcircbuf_mmap_shm_open_factory" \
+            > "$HOME/.gnuradio/prefs/vmcircbuf_default_factory"
       - name: Run qa_source_mock under valgrind memcheck
         run: |
           export PYTHONPATH="${{ github.workspace }}/build/test_modules"
